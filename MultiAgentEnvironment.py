@@ -124,8 +124,17 @@ class Algorithm:
 
         return paths
 
+    def apf_search(self, goal):
+        raise NotImplementedError
 
-def run_scenario_multi_agent_a_star(obstacles_in, agents_in, goal_in):
+    def mad_search(self, goal):
+        raise NotImplementedError
+
+    def grey_wolf_search(self, goal):
+        raise NotImplementedError
+
+
+def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     # Initialize Pygame
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -140,7 +149,20 @@ def run_scenario_multi_agent_a_star(obstacles_in, agents_in, goal_in):
     # Create an instance of the Algorithm class
     algorithm = Algorithm(agents, obstacles)
 
-    paths = algorithm.a_star_search(goal_position)
+    # Find paths for each agent depending on search method
+    # Add the way your algorithm is accessed here
+    if algorithm_type == "A Star":
+        paths = algorithm.a_star_search(goal_position)
+    elif algorithm_type == "APF":
+        raise NotImplementedError
+    elif algorithm_type != "Grey Wolf":
+        raise NotImplementedError
+    elif algorithm_type != "MAD":
+        raise NotImplementedError
+    else:
+        print("invalid algorithm")
+
+
 
     # Game loop
     running = True

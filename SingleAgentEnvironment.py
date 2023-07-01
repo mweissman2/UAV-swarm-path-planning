@@ -115,8 +115,17 @@ class Algorithm:
 
         return path
 
+    def apf_search(self, goal):
+        raise NotImplementedError
 
-def run_scenario_single_agent(obstacles_in, agent_in, goal_in):
+    def mad_search(self, goal):
+        raise NotImplementedError
+
+    def grey_wolf_search(self, goal):
+        raise NotImplementedError
+
+
+def run_scenario_single_agent(obstacles_in, agent_in, goal_in, algorithm_type):
     # Initialize Pygame
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -124,18 +133,29 @@ def run_scenario_single_agent(obstacles_in, agent_in, goal_in):
     clock = pygame.time.Clock()
 
     # Create agent and obstacles
-    agent = agent_in # Initialize agent at the start point
+    agent = agent_in  # Initialize agent at the start point
     obstacles = obstacles_in
-
-    # Create algorithm instance
-    algorithm = Algorithm(agent, obstacles)
 
     # Set goal position
     goal = goal_in
 
-    # Find path using A* search algorithm
-    path = algorithm.a_star_search(goal)
-    agent.path = path.copy()
+    # Create an instance of the Algorithm class
+    algorithm = Algorithm(agent, obstacles)
+
+    # Find paths for each agent depending on search method
+    # Add the way your algorithm is accessed here
+    if algorithm_type == "A Star":
+        # Find path using A* search algorithm
+        path = algorithm.a_star_search(goal)
+        agent.path = path.copy()
+    elif algorithm_type == "APF":
+        raise NotImplementedError
+    elif algorithm_type != "Grey Wolf":
+        raise NotImplementedError
+    elif algorithm_type != "MAD":
+        raise NotImplementedError
+    else:
+        print("invalid algorithm")
 
     # Game loop
     running = True
