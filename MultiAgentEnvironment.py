@@ -110,13 +110,17 @@ class Algorithm:
 
             # Reconstruct the paths for each agent in the swarm
             agent.path = []
+            temp_path = []
             current = goal
-            while current != (agent.x, agent.y):
+            while current != agent.start:
                 agent.path.append(current)
+                temp_path.append(current)
                 current = came_from[current]
             agent.path.append(agent.start)
+            temp_path.append(agent.start)
             agent.path.reverse()
-            paths.append(agent.path)
+            temp_path.reverse()
+            paths.append(temp_path)
 
         return paths
 
@@ -137,6 +141,7 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in):
     algorithm = Algorithm(agents, obstacles)
 
     paths = algorithm.a_star_search(goal_position)
+    paths_for_display = paths
 
     # Game loop
     running = True
@@ -164,9 +169,8 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in):
         for obstacle in obstacles:
             obstacle.draw(screen)
 
-
         # Draw the path
-        for path in paths:
+        for path in paths_for_display:
             pygame.draw.lines(screen, BLUE, False, path)
 
         # Update the display

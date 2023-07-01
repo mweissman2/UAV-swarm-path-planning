@@ -8,8 +8,8 @@ goal_1 = (700, 500)
 agent_1 = SingleAgentEnvironment.Agent(100, 100)
 agents_1 = [
         MultiAgentEnvironment.Agent(1, 100, 100),
-        MultiAgentEnvironment.Agent(2, 100, 200),
-        MultiAgentEnvironment.Agent(3, 100, 300)
+        MultiAgentEnvironment.Agent(2, 100, 140),
+        MultiAgentEnvironment.Agent(3, 100, 170)
     ]
 
 obstacles_1 = [
@@ -73,7 +73,7 @@ obstacles_array = [obstacles_1, obstacles_2, obstacles_3]
 
 
 def main():
-    obstacles_to_use = 0;
+    obstacles_to_use = 0
     while obstacles_to_use > len(obstacles_array) or obstacles_to_use < 1:
         obstacles_to_use = int(input("\nWhich Obstacle Set would you like to use? (options: 1, 2, 3)\n"))
 
