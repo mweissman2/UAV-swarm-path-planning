@@ -8,8 +8,8 @@ goal_1 = (700, 500)
 agent_1 = SingleAgentEnvironment.Agent(100, 100)
 agents_1 = [
         MultiAgentEnvironment.Agent(1, 100, 100),
-        MultiAgentEnvironment.Agent(2, 100, 100),
-        MultiAgentEnvironment.Agent(3, 100, 100)
+        MultiAgentEnvironment.Agent(2, 100, 200),
+        MultiAgentEnvironment.Agent(3, 100, 300)
     ]
 
 obstacles_1 = [

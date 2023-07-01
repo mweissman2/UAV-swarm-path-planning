@@ -86,7 +86,6 @@ class Algorithm:
                     valid_neighbors.append(neighbor)
             return valid_neighbors
 
-
         # A* search algorithm
         paths = []
 
@@ -135,12 +134,9 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in):
     goal_position = goal_in
 
     # Create an instance of the Algorithm class
-    algorithm = Algorithm(agents_in, obstacles)
+    algorithm = Algorithm(agents, obstacles)
 
     paths = algorithm.a_star_search(goal_position)
-
-    # Choose one agent to display
-    agent_to_display = agents[0]
 
     # Game loop
     running = True
@@ -151,24 +147,27 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in):
                 running = False
 
         # Update the agent's position
-        agent_to_display.move()
+        for agent in agents:
+            agent.move()
 
         # Clear the screen
         screen.fill(WHITE)
 
-        # Draw the agent and obstacles
-        agent_to_display.draw(screen)
+        # Draw the agent
+        # Draw the start and goal positions
+        for agent in agents:
+            agent.draw(screen)
+            pygame.draw.circle(screen, BLUE, agent.start, 5)
+            pygame.draw.circle(screen, BLUE, goal_position, 5)
+
+        # Draw the obstacles
         for obstacle in obstacles:
             obstacle.draw(screen)
 
-        # Draw the start and goal positions
-        pygame.draw.circle(screen, BLUE, agent_to_display.start, 5)
-        pygame.draw.circle(screen, BLUE, goal_position, 5)
 
         # Draw the path
-        if paths:
-            #points = [(int(round(pos[0])), int(round(pos[1]))) for pos in paths[0]]
-            pygame.draw.lines(screen, BLUE, False, paths[0])
+        for path in paths:
+            pygame.draw.lines(screen, BLUE, False, path)
 
         # Update the display
         pygame.display.flip()
