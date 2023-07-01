@@ -125,7 +125,7 @@ class Algorithm:
         return paths
 
 
-def run_scenario_multi_agent(obstacles_in, agents_in, goal_in):
+def run_scenario_multi_agent_a_star(obstacles_in, agents_in, goal_in):
     # Initialize Pygame
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -141,7 +141,6 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in):
     algorithm = Algorithm(agents, obstacles)
 
     paths = algorithm.a_star_search(goal_position)
-    paths_for_display = paths
 
     # Game loop
     running = True
@@ -170,7 +169,7 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in):
             obstacle.draw(screen)
 
         # Draw the path
-        for path in paths_for_display:
+        for path in paths:
             pygame.draw.lines(screen, BLUE, False, path)
 
         # Update the display
