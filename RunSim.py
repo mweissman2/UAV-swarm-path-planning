@@ -5,6 +5,13 @@ import MultiAgentEnvironment
 OBSTACLE_RADIUS = 30  # Radius of the obstacles
 start_1 = (100, 100)
 goal_1 = (700, 500)
+agent_1 = SingleAgentEnvironment.Agent(100, 100)
+agents_1 = [
+        MultiAgentEnvironment.Agent(1, 100, 100),
+        MultiAgentEnvironment.Agent(2, 100, 100),
+        MultiAgentEnvironment.Agent(3, 100, 100)
+    ]
+
 obstacles_1 = [
     SingleAgentEnvironment.Obstacle(300, 200, OBSTACLE_RADIUS),
     SingleAgentEnvironment.Obstacle(400, 200, OBSTACLE_RADIUS),
@@ -66,8 +73,12 @@ obstacles_array = [obstacles_1, obstacles_2, obstacles_3]
 
 
 def main():
-    obstacles_to_use = int(input("Which Obstacle Set would you like to use? (options: 1, 2, 3)\n"))
-    SingleAgentEnvironment.run_scenario_single_agent(obstacles_array[obstacles_to_use - 1], start_1, goal_1)
+    obstacles_to_use = 0;
+    while obstacles_to_use > len(obstacles_array) or obstacles_to_use < 1:
+        obstacles_to_use = int(input("\nWhich Obstacle Set would you like to use? (options: 1, 2, 3)\n"))
+
+    MultiAgentEnvironment.run_scenario_multi_agent(obstacles_array[obstacles_to_use - 1], agents_1, goal_1)
+    #SingleAgentEnvironment.run_scenario_single_agent(obstacles_array[obstacles_to_use - 1], agent_1, goal_1)
 
 
 if __name__ == "__main__":

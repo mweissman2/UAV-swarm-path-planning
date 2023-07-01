@@ -15,10 +15,12 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 
+
 class Agent:
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        self.start = (self.x, self.y)
         self.path = []
 
     def move(self):
@@ -40,6 +42,7 @@ class Agent:
     def draw(self, screen):
         pygame.draw.circle(screen, GREEN, (self.x, self.y), AGENT_RADIUS)
 
+
 class Obstacle:
     def __init__(self, x, y, radius):
         self.x = x
@@ -49,12 +52,13 @@ class Obstacle:
     def draw(self, screen):
         pygame.draw.circle(screen, BLACK, (self.x, self.y), self.radius)
 
+
 class Algorithm:
     def __init__(self, agent, obstacles):
         self.agent = agent
         self.obstacles = obstacles
 
-    def a_star_search(self, start, goal):
+    def a_star_search(self, goal):
         # Heuristic function (Euclidean distance)
         def heuristic(node):
             x, y = node
@@ -74,7 +78,7 @@ class Algorithm:
         # Generate valid neighbor nodes
         def get_neighbors(node):
             x, y = node
-            neighbors = [(x-1, y), (x+1, y), (x, y-1), (x, y+1)]  # 4-connected grid
+            neighbors = [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)]  # 4-connected grid
             valid_neighbors = []
             for neighbor in neighbors:
                 if is_valid(neighbor):
@@ -82,9 +86,9 @@ class Algorithm:
             return valid_neighbors
 
         # A* search algorithm
-        frontier = [(0, start)]  # Priority queue of nodes to explore
+        frontier = [(0, self.agent.start)]  # Priority queue of nodes to explore
         came_from = {}  # Dictionary to store the parent of each node
-        cost_so_far = {start: 0}  # Dictionary to store the cost to reach each node
+        cost_so_far = {self.agent.start: 0}  # Dictionary to store the cost to reach each node
 
         while frontier:
             _, current = heapq.heappop(frontier)
@@ -103,15 +107,16 @@ class Algorithm:
         # Reconstruct the path
         path = []
         current = goal
-        while current != start:
+        while current != self.agent.start:
             path.append(current)
             current = came_from[current]
-        path.append(start)
+        path.append(self.agent.start)
         path.reverse()
 
         return path
 
-def run_scenario_single_agent(obstacles_in, start_in, goal_in):
+
+def run_scenario_single_agent(obstacles_in, agent_in, goal_in):
     # Initialize Pygame
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -119,18 +124,17 @@ def run_scenario_single_agent(obstacles_in, start_in, goal_in):
     clock = pygame.time.Clock()
 
     # Create agent and obstacles
-    agent = Agent(start_in[0], start_in[1])  # Initialize agent at the start point
+    agent = agent_in # Initialize agent at the start point
     obstacles = obstacles_in
 
     # Create algorithm instance
     algorithm = Algorithm(agent, obstacles)
 
-    # Set start and goal positions
-    start = start_in
+    # Set goal position
     goal = goal_in
 
     # Find path using A* search algorithm
-    path = algorithm.a_star_search(start, goal)
+    path = algorithm.a_star_search(goal)
     agent.path = path.copy()
 
     # Game loop
@@ -153,7 +157,7 @@ def run_scenario_single_agent(obstacles_in, start_in, goal_in):
             obstacle.draw(screen)
 
         # Draw the start and goal positions
-        pygame.draw.circle(screen, BLUE, start, 5)
+        pygame.draw.circle(screen, BLUE, agent.start, 5)
         pygame.draw.circle(screen, BLUE, goal, 5)
 
         # Draw the path
