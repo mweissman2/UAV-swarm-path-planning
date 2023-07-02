@@ -1,5 +1,6 @@
 import pygame
 import heapq
+import math
 
 # Constants
 WIDTH = 800  # Width of the simulation window
@@ -116,7 +117,78 @@ class Algorithm:
         return path
 
     def apf_search(self, goal):
-        raise NotImplementedError
+        # Compute the attractive force between the agent and the goal
+        def attractive_force(agent_pos, goal_pos):
+            k_att = 1.0  # Attractive force gain
+            dx = goal_pos[0] - agent_pos[0]
+            dy = goal_pos[1] - agent_pos[1]
+            angle = math.atan2(dy, dx)
+            return (k_att * dx, k_att * dy)
+
+        # Compute the repulsive force between the agent and an obstacle
+        def repulsive_force(agent_pos, obstacle_pos, obstacle_radius):
+            k_rep = 100.0  # Repulsive force gain
+            min_dist = AGENT_RADIUS + obstacle_radius
+            dx = agent_pos[0] - obstacle_pos[0]
+            dy = agent_pos[1] - obstacle_pos[1]
+            dist = math.sqrt(dx ** 2 + dy ** 2)
+            if dist < min_dist:
+                angle = math.atan2(dy, dx)
+                return (k_rep * (1.0 / dist - 1.0 / min_dist) * math.cos(angle),
+                        k_rep * (1.0 / dist - 1.0 / min_dist) * math.sin(angle))
+            else:
+                return (0.0, 0.0)
+
+        # Compute the total force acting on the agent at its current position
+        def total_force(agent_pos, goal_pos, obstacles):
+            force_x, force_y = attractive_force(agent_pos, goal_pos)
+            for obstacle in obstacles:
+                rep_force_x, rep_force_y = repulsive_force(agent_pos, (obstacle.x, obstacle.y), obstacle.radius)
+                force_x += rep_force_x
+                force_y += rep_force_y
+            return (force_x, force_y)
+
+        # Move the agent towards the goal position based on the total force
+        def move_towards(agent_pos, goal_pos, obstacles):
+            force_x, force_y = total_force(agent_pos, goal_pos, obstacles)
+            force_magnitude = math.sqrt(force_x ** 2 + force_y ** 2)
+            if force_magnitude > MOVEMENT_SPEED:
+                force_x /= force_magnitude
+                force_y /= force_magnitude
+                force_x *= MOVEMENT_SPEED
+                force_y *= MOVEMENT_SPEED
+
+            new_pos_x = agent_pos[0] + force_x
+            new_pos_y = agent_pos[1] + force_y
+
+            # Check for collision with obstacles and adjust the new position accordingly
+            for obstacle in obstacles:
+                dx = new_pos_x - obstacle.x
+                dy = new_pos_y - obstacle.y
+                distance = math.sqrt(dx ** 2 + dy ** 2)
+                if distance <= AGENT_RADIUS + obstacle.radius:
+                    angle = math.atan2(dy, dx)
+                    new_pos_x = obstacle.x + (AGENT_RADIUS + obstacle.radius) * math.cos(angle)
+                    new_pos_y = obstacle.y + (AGENT_RADIUS + obstacle.radius) * math.sin(angle)
+                    break
+
+            return (new_pos_x, new_pos_y)
+
+        path = [self.agent.start]
+        current_pos = self.agent.start
+
+        while True:
+            # Move towards the next position based on the total force
+            next_pos = move_towards(current_pos, goal, self.obstacles)
+            path.append(next_pos)
+
+            # Check if the agent has reached the goal position
+            if math.sqrt((next_pos[0] - goal[0]) ** 2 + (next_pos[1] - goal[1]) ** 2) <= MOVEMENT_SPEED:
+                break
+
+            current_pos = next_pos
+
+        return path
 
     def mad_search(self, goal):
         raise NotImplementedError
@@ -149,7 +221,9 @@ def run_scenario_single_agent(obstacles_in, agent_in, goal_in, algorithm_type):
         path = algorithm.a_star_search(goal)
         agent.path = path.copy()
     elif algorithm_type == "APF":
-        raise NotImplementedError
+        # Find path using A* search algorithm
+        path = algorithm.apf_search(goal)
+        agent.path = path.copy()
     elif algorithm_type != "Grey Wolf":
         raise NotImplementedError
     elif algorithm_type != "MAD":

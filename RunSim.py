@@ -77,9 +77,10 @@ def main():
     while obstacles_to_use > len(obstacles_array) or obstacles_to_use < 1:
         obstacles_to_use = int(input("\nWhich Obstacle Set would you like to use? (options: 1, 2, 3)\n"))
 
-    MultiAgentEnvironment.run_scenario_multi_agent(obstacles_array[obstacles_to_use - 1], agents_1, goal_1, "A Star")
+    # MultiAgentEnvironment.run_scenario_multi_agent(obstacles_array[obstacles_to_use - 1], agents_1, goal_1, "A Star")
     # SingleAgentEnvironment.run_scenario_single_agent(obstacles_array[obstacles_to_use - 1], agent_1, goal_1, "A Star")
-
+    # SingleAgentEnvironment.run_scenario_single_agent(obstacles_array[obstacles_to_use - 1], agent_1, goal_1, "APF")
+    MultiAgentEnvironment.run_scenario_multi_agent(obstacles_array[obstacles_to_use - 1], agents_1, goal_1, "APF")
 
 if __name__ == "__main__":
     main()
