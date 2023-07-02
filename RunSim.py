@@ -5,13 +5,15 @@ import random
 # Define Constant Goals, Starts, and Obstacles
 OBSTACLE_RADIUS = 30  # Radius of the obstacles
 goal_1 = (700, int(random.uniform(150, 550)))
+goal_2 = (700, 500)
 agent_1 = SingleAgentEnvironment.Agent(100, 100)
 agents_1 = [
     MultiAgentEnvironment.Agent(1, 100, 100),
     MultiAgentEnvironment.Agent(2, 100, 140),
     MultiAgentEnvironment.Agent(3, 100, 170)
 ]
-agents_2 = MultiAgentEnvironment.create_random_agents(80, 140, 100, 500, 1)
+agents_random = MultiAgentEnvironment.create_random_agents(80, 140, 100, 500, 1)
+agents_rand_line = MultiAgentEnvironment.create_agent_line(100, int(random.uniform(100, 550)), 5)
 
 list_of_algos = ["A Star"]
 
@@ -78,9 +80,13 @@ def main():
     while obstacles_to_use > len(obstacles_array) or obstacles_to_use < 1:
         obstacles_to_use = int(input("\nWhich Obstacle Set would you like to use? (options: 1, 2, 3, 4)\n"))
 
+    obstacles = obstacles_array[obstacles_to_use - 1]
+
     num_rand_agents = 0
     while num_rand_agents > 15 or num_rand_agents < 1:
         num_rand_agents = int(input("\nHow many random agents would you like to generate?\n"))
+
+    agents = MultiAgentEnvironment.create_agent_line(100, int(random.uniform(100, 600)), num_rand_agents)
 
     algo = ""
     while algo not in list_of_algos:
@@ -89,11 +95,8 @@ def main():
             print(list_of_algos)
             print("Not in list of algorithms, choose from the list above")
 
-    MultiAgentEnvironment.run_scenario_multi_agent(obstacles_array[obstacles_to_use - 1],
-                                                   MultiAgentEnvironment.create_random_agents(40, 150, 70, 450,
-                                                                                              num_rand_agents), goal_1,
-                                                   algo)
-    # SingleAgentEnvironment.run_scenario_single_agent(obstacles_array[obstacles_to_use - 1], agent_1, goal_1, "A Star")
+    MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents, goal_1, algo)
+    # SingleAgentEnvironment.run_scenario_single_agent(obstacles, agent_1, goal_1, "A Star")
 
 
 if __name__ == "__main__":

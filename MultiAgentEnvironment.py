@@ -56,6 +56,14 @@ def create_random_agents(min_x, max_x, min_y, max_y, num_agents):
     return agent_objects
 
 
+def create_agent_line(right_x, right_y, num_agents):
+    agent_objects = []
+    for agent_id in range(1, num_agents + 1):
+        agent = Agent(agent_id, right_x - 2*agent_id, right_y)
+        agent_objects.append(agent)
+    return agent_objects
+
+
 class Obstacle:
     def __init__(self, x, y, radius):
         self.x = x
