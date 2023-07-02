@@ -1,3 +1,5 @@
+import random
+
 import pygame
 import heapq
 
@@ -51,6 +53,17 @@ class Obstacle:
 
     def draw(self, screen):
         pygame.draw.circle(screen, BLACK, (self.x, self.y), self.radius)
+
+
+def create_obstacle_objects(min_x, max_x, min_y, max_y, min_size, max_size, num_obstacles):
+    obstacle_objects = []
+    for _ in range(num_obstacles):
+        x = int(random.uniform(min_x, max_x))
+        y = int(random.uniform(min_y, max_y))
+        size = int(random.randint(min_size, max_size))
+        obstacle = Obstacle(x, y, size)
+        obstacle_objects.append(obstacle)
+    return obstacle_objects
 
 
 class Algorithm:
