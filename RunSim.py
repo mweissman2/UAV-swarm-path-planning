@@ -12,6 +12,8 @@ agents_1 = [
         MultiAgentEnvironment.Agent(3, 100, 170)
     ]
 
+agents_2 = MultiAgentEnvironment.create_random_agents(80, 140, 100, 500, 1)
+
 obstacles_1 = [
     SingleAgentEnvironment.Obstacle(300, 200, OBSTACLE_RADIUS),
     SingleAgentEnvironment.Obstacle(400, 200, OBSTACLE_RADIUS),
@@ -56,7 +58,7 @@ obstacles_3 = [
     SingleAgentEnvironment.Obstacle(400, 400, OBSTACLE_RADIUS),
     SingleAgentEnvironment.Obstacle(400, 200, OBSTACLE_RADIUS),
     SingleAgentEnvironment.Obstacle(400, 100, OBSTACLE_RADIUS),
-    SingleAgentEnvironment.Obstacle(100, 300, 60),
+    # SingleAgentEnvironment.Obstacle(100, 300, 60),
     SingleAgentEnvironment.Obstacle(525, 375, 100),
     SingleAgentEnvironment.Obstacle(700, 300, 10),
     SingleAgentEnvironment.Obstacle(400, 50, 70),
@@ -77,7 +79,11 @@ def main():
     while obstacles_to_use > len(obstacles_array) or obstacles_to_use < 1:
         obstacles_to_use = int(input("\nWhich Obstacle Set would you like to use? (options: 1, 2, 3)\n"))
 
-    MultiAgentEnvironment.run_scenario_multi_agent(obstacles_array[obstacles_to_use - 1], agents_1, goal_1, "A Star")
+    num_rand_agents = 0
+    while num_rand_agents > 15 or num_rand_agents < 1:
+        num_rand_agents = int(input("\nHow many random agents would you like to generate?\n"))
+
+    MultiAgentEnvironment.run_scenario_multi_agent(obstacles_array[obstacles_to_use - 1], MultiAgentEnvironment.create_random_agents(40, 150, 70, 450, num_rand_agents), goal_1, "A Star")
     # SingleAgentEnvironment.run_scenario_single_agent(obstacles_array[obstacles_to_use - 1], agent_1, goal_1, "A Star")
 
 
