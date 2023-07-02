@@ -122,7 +122,7 @@ class Algorithm:
             k_att = 1.0  # Attractive force gain
             dx = goal_pos[0] - agent_pos[0]
             dy = goal_pos[1] - agent_pos[1]
-            angle = math.atan2(dy, dx)
+            angle = math.atan2(dy, dx) # This doesn't matter if the UAVs are represented as circles
             return (k_att * dx, k_att * dy)
 
         # Compute the repulsive force between the agent and an obstacle

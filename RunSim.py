@@ -79,8 +79,8 @@ def main():
 
     # MultiAgentEnvironment.run_scenario_multi_agent(obstacles_array[obstacles_to_use - 1], agents_1, goal_1, "A Star")
     # SingleAgentEnvironment.run_scenario_single_agent(obstacles_array[obstacles_to_use - 1], agent_1, goal_1, "A Star")
-    # SingleAgentEnvironment.run_scenario_single_agent(obstacles_array[obstacles_to_use - 1], agent_1, goal_1, "APF")
-    MultiAgentEnvironment.run_scenario_multi_agent(obstacles_array[obstacles_to_use - 1], agents_1, goal_1, "APF")
+    SingleAgentEnvironment.run_scenario_single_agent(obstacles_array[obstacles_to_use - 1], agent_1, goal_1, "APF")
+    # MultiAgentEnvironment.run_scenario_multi_agent(obstacles_array[obstacles_to_use - 1], agents_1, goal_1, "APF")
 
 if __name__ == "__main__":
     main()
