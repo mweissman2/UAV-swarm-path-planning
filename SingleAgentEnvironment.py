@@ -11,6 +11,9 @@ AGENT_RADIUS = 10  # Radius of the agent
 OBSTACLE_RADIUS = 30  # Radius of the obstacles
 MOVEMENT_SPEED = 3  # Movement speed of the agent
 
+# For APF
+SEARCH_RADIUS = 150
+
 # Colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -43,7 +46,11 @@ class Agent:
                 self.y += direction_y
 
     def draw(self, screen):
+        # Draw search radius for APF
+        pygame.draw.circle(screen, RED, (self.x, self.y), SEARCH_RADIUS)
+
         pygame.draw.circle(screen, GREEN, (self.x, self.y), AGENT_RADIUS)
+
 
 
 class Obstacle:
@@ -132,25 +139,32 @@ class Algorithm:
     def apf_search(self, goal):
         # Compute the attractive force between the agent and the goal
         def attractive_force(agent_pos, goal_pos):
-            k_att = 1.0  # Attractive force gain
-            dx = goal_pos[0] - agent_pos[0]
+            k_att = 50.0  # Attractive force gain
+            dx = (goal_pos[0] - agent_pos[0])
             dy = goal_pos[1] - agent_pos[1]
-            angle = math.atan2(dy, dx) # This doesn't matter if the UAVs are represented as circles
-            return (k_att * dx, k_att * dy)
+            angle = math.atan2(dy, dx)  # The direction doesn't matter if the UAVs are represented as circles
+            return k_att * dx, k_att * dy
 
         # Compute the repulsive force between the agent and an obstacle
         def repulsive_force(agent_pos, obstacle_pos, obstacle_radius):
             k_rep = 100.0  # Repulsive force gain
+            p0 = obstacle_radius
             min_dist = AGENT_RADIUS + obstacle_radius
             dx = agent_pos[0] - obstacle_pos[0]
             dy = agent_pos[1] - obstacle_pos[1]
             dist = math.sqrt(dx ** 2 + dy ** 2)
-            if dist < min_dist:
-                angle = math.atan2(dy, dx)
-                return (k_rep * (1.0 / dist - 1.0 / min_dist) * math.cos(angle),
-                        k_rep * (1.0 / dist - 1.0 / min_dist) * math.sin(angle))
-            else:
-                return (0.0, 0.0)
+            # if (dist - obstacle_radius < SEARCH_RADIUS) and (dist < min_dist): # Only takes into account obstacles in search rad
+            #         angle = math.atan2(dy, dx)
+            #         return (k_rep * (1.0 / (dist - min_dist + obstacle_radius)) * math.cos(angle),
+            #                 k_rep * (1.0 / (dist - min_dist + obstacle_radius)) * math.sin(angle))
+            # else:
+            #     return (0.0, 0.0)
+            obst_dist_x = agent_pos[0] - obstacle_pos[0]
+            obst_dist_y = agent_pos[1] - obstacle_pos[1]
+            x_rep = k_rep * ((1/obst_dist_x - (1/p0)) * (1 / obst_dist_x)**2)
+            y_rep = k_rep * ((1 / obst_dist_y - (1 / p0)) * (1 / obst_dist_y) ** 2)
+            return x_rep, y_rep
+
 
         # Compute the total force acting on the agent at its current position
         def total_force(agent_pos, goal_pos, obstacles):
@@ -266,6 +280,13 @@ def run_scenario_single_agent(obstacles_in, agent_in, goal_in, algorithm_type):
         # Draw the start and goal positions
         pygame.draw.circle(screen, BLUE, agent.start, 5)
         pygame.draw.circle(screen, BLUE, goal, 5)
+
+        # Draw text
+        # font = pygame.font.Font('freesansbold.ttf', 32)
+        # text = font.render('Obstacles', True, GREEN, BLUE)
+        # textRect = text.get_rect()
+        # textRect.center = (200,100)
+        # screen.blit(text,textRect)
 
         # Draw the path
         if path:
