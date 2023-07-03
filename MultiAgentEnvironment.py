@@ -16,7 +16,6 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 
-
 class Agent:
     def __init__(self, agent_id, x, y):
         self.agent_id = agent_id
@@ -44,6 +43,60 @@ class Agent:
     def draw(self, screen):
         pygame.draw.circle(screen, GREEN, (self.x, self.y), AGENT_RADIUS)
 
+class Wolf(Agent):
+    def __init__(self, agent_id, x, y, is_alpha):
+        super().__init_(agent_id, x, y)
+        self.is_alpha = False
+
+    def make_alpha(self):
+        self.is_alpha = True
+
+    def make_omega(self):
+        self.is_alpha = False
+    def is_in_search_space(self, x, y, search_space):
+        # checks if new positions are within the search space
+        return search_space[0] <= x <= search_space[1] and search_space[2] <= y <= search_space[3]
+
+    def update_position(self, alpha_position, goal, search_space):
+        # find new position based on alpha/omega designation
+        if self.is_alpha = True:
+            # calculate distance and direction to goal
+            dx = alpha_position[0] - self.goal[0]
+            dy = alpha_position[1] - self.goal[1]
+            magnitude = (dx ** 2 + dy ** 2) ** 0.5
+
+            # normalize direction vector to goal
+            if magnitude > 0:
+                dx /= magnitude
+                dy /= magnitude
+
+            # calculate new position based on direction towards goal
+            new_x = self.x + dx * MOVEMENT_SPEED
+            new_y = self.y + dy * MOVEMENT_SPEED
+
+        else:
+            # implement position update logic based on alpha position
+            strength = random.uniform(0,1) # randomized strength "pull" towards alpha wolf
+
+            # calculate distance and direction to alpha wolf
+            dx_alpha = alpha_position[0] - self.x
+            dy_alpha = alpha_position[1] - self.y
+            distance_alpha = (dx_alpha ** 2 + dy_alpha ** 2) ** 0.5
+
+            # update position to move towards alpha, dependent on strength variable
+            direction_x = int(dx_alpha / distance_alpha * strength * MOVEMENT_SPEED)
+            direction_y = int(dy_alpha / distance_alpha * strength * MOVEMENT_SPEED)
+            new_x = self.x + direction_x
+            new_y = self.y + direction_y
+
+        # checks and limits new position within search space
+        if self.is_in_search_space(new_x, new_y, search_space):
+            self.x = new_x
+            self.y = new.y
+        else:
+            self.x = max(search_space[0], min(new_x, search_space[1]))
+            self.y = max(search_space[2], min(new_y, search_space[3]))
+
 
 # Generate random agents
 def create_random_agents(min_x, max_x, min_y, max_y, num_agents):
@@ -54,15 +107,12 @@ def create_random_agents(min_x, max_x, min_y, max_y, num_agents):
         agent = Agent(agent_id, x, y)
         agent_objects.append(agent)
     return agent_objects
-
-
 def create_agent_line(right_x, right_y, num_agents):
     agent_objects = []
     for agent_id in range(1, num_agents + 1):
         agent = Agent(agent_id, right_x - 2*agent_id, right_y)
         agent_objects.append(agent)
     return agent_objects
-
 
 class Obstacle:
     def __init__(self, x, y, radius):
@@ -72,7 +122,6 @@ class Obstacle:
 
     def draw(self, screen):
         pygame.draw.circle(screen, BLACK, (self.x, self.y), self.radius)
-
 
 class Algorithm:
     def __init__(self, list_of_agents, obstacles):
@@ -150,8 +199,43 @@ class Algorithm:
     def mad_search(self, goal):
         raise NotImplementedError
 
-    def grey_wolf_search(self, goal):
-        raise NotImplementedError
+    def simplified_gwo_search(self, goal):
+        def fitness(node, goal):
+            x, y = node
+            goal_x, goal_y = goal
+            return ((x - goal_x) ** 2 + (y - goal_y) ** 2) ** 0.5
+
+        # Check if a given node is valid
+        def is_valid(node):
+            x, y = node
+            if x < 0 or x >= WIDTH or y < 0 or y >= HEIGHT:
+                return False
+            for obstacle in self.obstacles:
+                if ((x - obstacle.x) ** 2 + (y - obstacle.y) ** 2) ** 0.5 <= AGENT_RADIUS + obstacle.radius:
+                    return False
+            return True
+
+        # Generate valid neighbor nodes
+        def get_neighbors(node):
+            x, y = node
+            neighbors = [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)]  # 4-connected grid
+            valid_neighbors = []
+            for neighbor in neighbors:
+                if is_valid(neighbor):
+                    valid_neighbors.append(neighbor)
+            return valid_neighbors
+
+        # Alpha wolf function for GWO algorithm
+        def hierarchy(swarm):
+            # calculate all fitness
+            # update hierarchy
+
+            return alpha_position, alpha_score
+
+        # for all wolves, loop until goal:
+            # run hierarchy function
+            # update positions
+        # reconstruct path
 
 
 def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
@@ -175,7 +259,7 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         paths = algorithm.a_star_search(goal_position)
     elif algorithm_type == "APF":
         raise NotImplementedError
-    elif algorithm_type != "Grey Wolf":
+    elif algorithm_type != "Simplified GWO":
         raise NotImplementedError
     elif algorithm_type != "MAD":
         raise NotImplementedError
