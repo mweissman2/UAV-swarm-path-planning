@@ -148,22 +148,23 @@ class Algorithm:
         # Compute the repulsive force between the agent and an obstacle
         def repulsive_force(agent_pos, obstacle_pos, obstacle_radius):
             k_rep = 100.0  # Repulsive force gain
-            p0 = obstacle_radius
-            min_dist = AGENT_RADIUS + obstacle_radius
-            dx = agent_pos[0] - obstacle_pos[0]
-            dy = agent_pos[1] - obstacle_pos[1]
-            dist = math.sqrt(dx ** 2 + dy ** 2)
+            p0 = AGENT_RADIUS + obstacle_radius  # Influence radius of F_rep
+            obst_dist_x = agent_pos[0] - obstacle_pos[0]
+            obst_dist_y = agent_pos[1] - obstacle_pos[1]
+            dist = math.sqrt(obst_dist_x ** 2 + obst_dist_y ** 2)  # Dist btwn UAV and obstacle
+            if dist <= p0:
+                x_rep = k_rep * ((1/obst_dist_x - (1/p0)) * (1 / obst_dist_x)**2)
+                y_rep = k_rep * ((1 / obst_dist_y - (1 / p0)) * (1 / obst_dist_y) ** 2)
+                return x_rep, y_rep
+            else:
+                return (0.0, 0.0)
+
             # if (dist - obstacle_radius < SEARCH_RADIUS) and (dist < min_dist): # Only takes into account obstacles in search rad
             #         angle = math.atan2(dy, dx)
             #         return (k_rep * (1.0 / (dist - min_dist + obstacle_radius)) * math.cos(angle),
             #                 k_rep * (1.0 / (dist - min_dist + obstacle_radius)) * math.sin(angle))
             # else:
             #     return (0.0, 0.0)
-            obst_dist_x = agent_pos[0] - obstacle_pos[0]
-            obst_dist_y = agent_pos[1] - obstacle_pos[1]
-            x_rep = k_rep * ((1/obst_dist_x - (1/p0)) * (1 / obst_dist_x)**2)
-            y_rep = k_rep * ((1 / obst_dist_y - (1 / p0)) * (1 / obst_dist_y) ** 2)
-            return x_rep, y_rep
 
 
         # Compute the total force acting on the agent at its current position
