@@ -270,7 +270,8 @@ def run_scenario_single_agent(obstacles_in, agent_in, goal_in, algorithm_type):
         screen.fill(WHITE)
 
         # Draw the search radius
-        pygame.draw.circle(screen, RED, (agent.x, agent.y), SEARCH_RADIUS)
+        if algorithm_type == "APF":
+            pygame.draw.circle(screen, RED, (agent.x, agent.y), SEARCH_RADIUS)
 
         # Draw the agent
         agent.draw(screen)
@@ -282,13 +283,6 @@ def run_scenario_single_agent(obstacles_in, agent_in, goal_in, algorithm_type):
         # Draw the start and goal positions
         pygame.draw.circle(screen, BLUE, agent.start, 5)
         pygame.draw.circle(screen, BLUE, goal, 5)
-
-        # Draw text
-        # font = pygame.font.Font('freesansbold.ttf', 32)
-        # text = font.render('Obstacles', True, GREEN, BLUE)
-        # textRect = text.get_rect()
-        # textRect.center = (200,100)
-        # screen.blit(text,textRect)
 
         # Draw the path
         if path:

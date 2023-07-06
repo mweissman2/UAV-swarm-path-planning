@@ -95,9 +95,9 @@ def main():
             print(list_of_algos)
             print("Not in list of algorithms, choose from the list above")
 
-    # MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents, goal_1, algo)
+    MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents, goal_1, algo)
     # SingleAgentEnvironment.run_scenario_single_agent(obstacles, agent_1, goal_1, "A Star")
-    SingleAgentEnvironment.run_scenario_single_agent(obstacles, agent_1, goal_1, algo)
+    # SingleAgentEnvironment.run_scenario_single_agent(obstacles, agent_1, goal_1, algo)
 
 
 if __name__ == "__main__":
