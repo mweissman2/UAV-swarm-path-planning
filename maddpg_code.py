@@ -120,89 +120,89 @@ class MADDPG_agent:
 
 
 
-# Below would be implemented in the MultiAgentEnvironment.py file under function mad_search
-# ------------------------------------------------------------------------------------------------------------------
-
-N = 100                     # number of episodes
-y = .45                     # reward discount, basically minimizes the max reward in the Q equation
-q_1 = []                    # list of q-values
-q_2 = []
-
-path1_store = []            # storing the total path
-path2_store = []
-
-e_th = .56
-cool = 0.05
-temp = 1500
-count = 50
-
-initial = [5,4]
-final = [14,6]
-
-# create agents
-
-agent1 = MADDPG(initial,final,e_th,cool,temp,count)  # argument order is currently incorrect
-agent2 = MADDPG(initial,final,e_th,cool,temp,count)
-
-for episode in range(1, N):
-
-
-    #command agents to commit actions, 5 transitions/ actions per episode = receive 5 transitions/actions as a result
-    path1, length1 = agent1.action()
-    path2, length2 = agent2.action()
-
-    path1_store += path1
-    path2_store += path2
-
-    #compute the value of each Q-value
-    #one for simulated annealing
-    # formula is Q = R + y*max(reward)
-    # R is calculating immediate reward of an action, so reward function calls one of the action algos
-    #the sampling of different actions will be thru using different parameters of the SA function
-    #y is the discount rate, which is multiplied by the maximum reward
-    q_1[episode] = agent1.reward(path1[-1],path1[-2])   #the reward, argument will be current position of agent at end of the action
-    q_2[episode] = agent2.reward(path2[-1], path2[-2])
-    #this q-value will determine the critic update
-    # which modifies the threshold  param of the SA algo
-
-    #sample a previous slope
-        #if new slope is greater, q values are rising and temperature can cool even more --> higher cooling rate, higher threshold
-    gradient_1 = (q_1[episode-2]-q_1[episode-1])/(2)       #simple rise over run calculation
-    gradient_2 = (q_2[episode-2]-q_2[episode-1])/(2)
-
-    new_gradient1 = (q_1[episode-1]-q_1[episode])/(2)
-    new_gradient2 = (q_2[episode-1]-q_2[episode])/(2)
-
-    e_th_1, temp_1, cool_rate_1 = agent1.get_param()
-    e_th_2, temp_2, cool_rate_2 = agent2.get_param()
-
-    if new_gradient1 < gradient_1:
-        e_update_1 = e_th_1 - .03
-        cool_update_1 = cool_rate_1 - .1
-        temp_update_1 = temp_1 - 100
-        # add count update too?
-
-    if new_gradient1 > gradient_1:
-        e_update_1 = e_th_1 + .03
-        cool_update_1 = cool_rate_1 + .1
-        temp_update_1 = temp_1 + 100
-
-    if new_gradient2 < gradient_2:
-        e_update_2 = e_th_2-.03
-        cool_update_2 = cool_rate_2-.1
-        temp_update_2 = temp_2 -100
-        # add count update too?
-
-    if new_gradient2 > gradient_2:
-        e_update_2 = e_th_2 + .03
-        cool_update_2 = cool_rate_2 + .1
-        temp_update_2 = temp_2 + 100
-        # add count update too?
-
-
-    # update critic according to conditions
-    agent1.update_critic(e_update_1,cool_update_1, temp_update_1)
-    agent2.update_critic(e_update_2,cool_update_2, temp_update_2)
+# # Below would be implemented in the MultiAgentEnvironment.py file under function mad_search
+# # ------------------------------------------------------------------------------------------------------------------
+#
+# N = 100                     # number of episodes
+# y = .45                     # reward discount, basically minimizes the max reward in the Q equation
+# q_1 = []                    # list of q-values
+# q_2 = []
+#
+# path1_store = []            # storing the total path
+# path2_store = []
+#
+# e_th = .56
+# cool = 0.05
+# temp = 1500
+# count = 50
+#
+# initial = [5,4]
+# final = [14,6]
+#
+# # create agents
+#
+# agent1 = MADDPG(initial,final,e_th,cool,temp,count)  # argument order is currently incorrect
+# agent2 = MADDPG(initial,final,e_th,cool,temp,count)
+#
+# for episode in range(1, N):
+#
+#
+#     #command agents to commit actions, 5 transitions/ actions per episode = receive 5 transitions/actions as a result
+#     path1, length1 = agent1.action()
+#     path2, length2 = agent2.action()
+#
+#     path1_store += path1
+#     path2_store += path2
+#
+#     #compute the value of each Q-value
+#     #one for simulated annealing
+#     # formula is Q = R + y*max(reward)
+#     # R is calculating immediate reward of an action, so reward function calls one of the action algos
+#     #the sampling of different actions will be thru using different parameters of the SA function
+#     #y is the discount rate, which is multiplied by the maximum reward
+#     q_1[episode] = agent1.reward(path1[-1],path1[-2])   #the reward, argument will be current position of agent at end of the action
+#     q_2[episode] = agent2.reward(path2[-1], path2[-2])
+#     #this q-value will determine the critic update
+#     # which modifies the threshold  param of the SA algo
+#
+#     #sample a previous slope
+#         #if new slope is greater, q values are rising and temperature can cool even more --> higher cooling rate, higher threshold
+#     gradient_1 = (q_1[episode-2]-q_1[episode-1])/(2)       #simple rise over run calculation
+#     gradient_2 = (q_2[episode-2]-q_2[episode-1])/(2)
+#
+#     new_gradient1 = (q_1[episode-1]-q_1[episode])/(2)
+#     new_gradient2 = (q_2[episode-1]-q_2[episode])/(2)
+#
+#     e_th_1, temp_1, cool_rate_1 = agent1.get_param()
+#     e_th_2, temp_2, cool_rate_2 = agent2.get_param()
+#
+#     if new_gradient1 < gradient_1:
+#         e_update_1 = e_th_1 - .03
+#         cool_update_1 = cool_rate_1 - .1
+#         temp_update_1 = temp_1 - 100
+#         # add count update too?
+#
+#     if new_gradient1 > gradient_1:
+#         e_update_1 = e_th_1 + .03
+#         cool_update_1 = cool_rate_1 + .1
+#         temp_update_1 = temp_1 + 100
+#
+#     if new_gradient2 < gradient_2:
+#         e_update_2 = e_th_2-.03
+#         cool_update_2 = cool_rate_2-.1
+#         temp_update_2 = temp_2 -100
+#         # add count update too?
+#
+#     if new_gradient2 > gradient_2:
+#         e_update_2 = e_th_2 + .03
+#         cool_update_2 = cool_rate_2 + .1
+#         temp_update_2 = temp_2 + 100
+#         # add count update too?
+#
+#
+#     # update critic according to conditions
+#     agent1.update_critic(e_update_1,cool_update_1, temp_update_1)
+#     agent2.update_critic(e_update_2,cool_update_2, temp_update_2)
 
 
 
