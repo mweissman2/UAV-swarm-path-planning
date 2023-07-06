@@ -4,6 +4,15 @@ import random
 import math
 from MultiAgentEnvironment import *
 
+
+# Constants
+WIDTH = 800  # Width of the simulation window
+HEIGHT = 600  # Height of the simulation window
+AGENT_RADIUS = 10  # Radius of the agent
+OBSTACLE_RADIUS = 30  # Radius of the obstacles
+MOVEMENT_SPEED = 3  # Movement speed of the agent
+
+
 # class for making individual agents
 class MADDPG_agent:
     def __init__(self, initial, goal, count, temp, cool, e_th, obstacles, ID):
@@ -71,7 +80,11 @@ class MADDPG_agent:
         # used to define the reward for the agents, defined as the euclidean distance- cost
         x1, y1 = final_x, final_y
         x2, y2 = self.goal[0], self.goal[1]
-        return (abs(x1 - x2) + abs(x2 - y2)) ** 0.5         # needs to change to manhattan heuristic
+        # Debugging code
+        # print(self.goal[0])
+        # print(self.goal)
+        # print(x1)
+        return (abs(x1 - x2) + abs(y1 - y2)) ** 0.5         # needs to change to manhattan heuristic
 
 
 
