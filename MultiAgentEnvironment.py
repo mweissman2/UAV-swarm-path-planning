@@ -79,7 +79,23 @@ def create_mad_agents(min_x, max_x, min_y, max_y, num_agents):
 
 # ************************************************************
 
+# Generate random agents
+def create_random_agents(min_x, max_x, min_y, max_y, num_agents):
+    agent_objects = []
+    for agent_id in range(1, num_agents + 1):
+        x = int(random.uniform(min_x, max_x))
+        y = int(random.uniform(min_y, max_y))
+        agent = Agent(agent_id, x, y)
+        agent_objects.append(agent)
+    return agent_objects
 
+
+def create_agent_line(right_x, right_y, num_agents):
+    agent_objects = []
+    for agent_id in range(1, num_agents + 1):
+        agent = Agent(agent_id, right_x - 2*agent_id, right_y)
+        agent_objects.append(agent)
+    return agent_objects
 
 
 class Algorithm:
