@@ -8,7 +8,7 @@ from MultiAgentEnvironment import *
 class MADDPG_agent:
     def __init__(self, initial, goal, count, temp, cool, e_th, obstacles):
         self.position = initial             # Current position of the agent, 1x2 list
-        self.goal = goal                    # Target position to reach, 1x2 list
+        self.goal = goal                   # Target position to reach, 1x2 list
         self.path =[]                       # initialize the path
         self.count = count
         self.path_length = 0
@@ -46,10 +46,9 @@ class MADDPG_agent:
         self.path_length += ((current[0]-next[0])**2+(current[1]-next[1])**2)**0.5
 
 
-    def update_critic(self,e_update, reward,cool_update, temp_update,count_update):
+    def update_critic(self,e_update, cool_update, temp_update,count_update):
                                  # update reward function
         self.count = count_update
-
         self.cool_rate = cool_update
         self.temp = temp_update
         self.e_th = e_update

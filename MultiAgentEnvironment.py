@@ -68,11 +68,26 @@ def create_mad_agents(min_x, max_x, min_y, max_y, num_agents):
     for agent_id in range(1, num_agents + 1):
         x = int(random.uniform(min_x, max_x))
         y = int(random.uniform(min_y, max_y))
-        e_th = .56*random.uniform(2, max_y)
-        cool = 0.05*random.uniform(min_y, max_y)
+        e_th = .56 * random.uniform(2, max_y)
+        cool = 0.05 * random.uniform(min_y, max_y)
         temp = 150
         count = 50
         mad_agent = MADDPG_agent(agent_id, x, y, count, temp, cool, e_th)
+        agent_objects.append(mad_agent)
+    return agent_objects
+
+
+def create_mad_agents_from_agents(agents_in, goal, obstacles):
+    # list to contain all agents
+    agent_objects = []
+    #
+    for agent in agents_in:
+        # edit parameter initialization at some point
+        e_th = .56
+        cool = 0.05
+        temp = 150
+        count = 50
+        mad_agent = MADDPG_agent((agent.x, agent.y), goal, count, temp, cool, e_th, obstacles)
         agent_objects.append(mad_agent)
     return agent_objects
 
@@ -93,7 +108,7 @@ def create_random_agents(min_x, max_x, min_y, max_y, num_agents):
 def create_agent_line(right_x, right_y, num_agents):
     agent_objects = []
     for agent_id in range(1, num_agents + 1):
-        agent = Agent(agent_id, right_x - 2*agent_id, right_y)
+        agent = Agent(agent_id, right_x - 2 * agent_id, right_y)
         agent_objects.append(agent)
     return agent_objects
 
@@ -190,15 +205,13 @@ class Algorithm:
             compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
 
             if compare > 0:
-                for agent in self.list_of_agents():
+                for mad_agent in self.list_of_agents():
                     # currently arbitrary
-                    e_update= e_th_1 - .03
-                    cool_update = cool_rate_1 - .1
-                    temp_update = temp_1 - 100
-                    count_update = count - 40
-                    agent.update_critic(e_update,cool_update, temp_update,count_update)
-
-
+                    e_update = mad_agent.e_th - .03
+                    cool_update = mad_agent.cool_rate - .1
+                    temp_update = mad_agent.temp - 100
+                    count_update = mad_agent.count - 40
+                    mad_agent.update_critic(e_update, cool_update, temp_update, count_update)
 
     def grey_wolf_search(self, goal):
         raise NotImplementedError
@@ -228,6 +241,7 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     elif algorithm_type != "Grey Wolf":
         raise NotImplementedError
     elif algorithm_type != "MAD":
+        mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
         raise NotImplementedError
     else:
         print("invalid algorithm")
