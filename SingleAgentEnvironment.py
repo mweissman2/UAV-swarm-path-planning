@@ -46,8 +46,6 @@ class Agent:
                 self.y += direction_y
 
     def draw(self, screen):
-        # Draw search radius for APF
-        pygame.draw.circle(screen, RED, (self.x, self.y), SEARCH_RADIUS)
 
         pygame.draw.circle(screen, GREEN, (self.x, self.y), AGENT_RADIUS)
 
@@ -152,29 +150,27 @@ class Algorithm:
             obst_dist_x = agent_pos[0] - obstacle_pos[0]
             obst_dist_y = agent_pos[1] - obstacle_pos[1]
             dist = math.sqrt(obst_dist_x ** 2 + obst_dist_y ** 2)  # Dist btwn UAV and obstacle
-            if dist <= p0:
-                x_rep = k_rep * ((1/obst_dist_x - (1/p0)) * (1 / obst_dist_x)**2)
-                y_rep = k_rep * ((1 / obst_dist_y - (1 / p0)) * (1 / obst_dist_y) ** 2)
-                return x_rep, y_rep
+            if dist <= SEARCH_RADIUS + obstacle_radius:  # checks if obstacle is in search radius
+                if dist <= p0:
+                    x_rep = k_rep * ((1/obst_dist_x - (1/p0)) * (1 / obst_dist_x)**2)
+                    y_rep = k_rep * ((1 / obst_dist_y - (1 / p0)) * (1 / obst_dist_y) ** 2)
+                    return x_rep, y_rep
+                else:
+                    return (0.0, 0.0)
             else:
                 return (0.0, 0.0)
-
-            # if (dist - obstacle_radius < SEARCH_RADIUS) and (dist < min_dist): # Only takes into account obstacles in search rad
-            #         angle = math.atan2(dy, dx)
-            #         return (k_rep * (1.0 / (dist - min_dist + obstacle_radius)) * math.cos(angle),
-            #                 k_rep * (1.0 / (dist - min_dist + obstacle_radius)) * math.sin(angle))
-            # else:
-            #     return (0.0, 0.0)
 
 
         # Compute the total force acting on the agent at its current position
         def total_force(agent_pos, goal_pos, obstacles):
             force_x, force_y = attractive_force(agent_pos, goal_pos)
+
             for obstacle in obstacles:
                 rep_force_x, rep_force_y = repulsive_force(agent_pos, (obstacle.x, obstacle.y), obstacle.radius)
                 force_x += rep_force_x
                 force_y += rep_force_y
             return (force_x, force_y)
+
 
         # Move the agent towards the goal position based on the total force
         def move_towards(agent_pos, goal_pos, obstacles):
@@ -273,8 +269,13 @@ def run_scenario_single_agent(obstacles_in, agent_in, goal_in, algorithm_type):
         # Clear the screen
         screen.fill(WHITE)
 
-        # Draw the agent and obstacles
+        # Draw the search radius
+        pygame.draw.circle(screen, RED, (agent.x, agent.y), SEARCH_RADIUS)
+
+        # Draw the agent
         agent.draw(screen)
+
+        # Draw obstacles
         for obstacle in obstacles:
             obstacle.draw(screen)
 
