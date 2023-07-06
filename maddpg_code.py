@@ -6,13 +6,14 @@ from MultiAgentEnvironment import *
 
 # class for making individual agents
 class MADDPG_agent:
-    def __init__(self, initial, goal, count, temp, cool, e_th, obstacles):
+    def __init__(self, initial, goal, count, temp, cool, e_th, obstacles, ID):
         self.position = initial             # Current position of the agent, 1x2 list
         self.goal = goal                   # Target position to reach, 1x2 list
         self.path =[]                       # initialize the path
         self.count = count
         self.path_length = 0
         self.obstacles = obstacles
+        self.agent_id = ID
 
         # algorithm parameters
         self.temp = temp
@@ -102,7 +103,7 @@ class MADDPG_agent:
                 return sa_path, self.path_length
 
             if delta > 0:
-                self.replay_buffer(current_pos,neighbor)
+                self.replay_buffer(current_pos, neighbor)
                 current_pos = neighbor
                 sa_path.append(current_pos)         # choosing best neighbor as next node if energy delta > 0
 

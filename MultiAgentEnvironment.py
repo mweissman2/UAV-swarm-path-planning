@@ -87,7 +87,7 @@ def create_mad_agents_from_agents(agents_in, goal, obstacles):
         cool = 0.05
         temp = 150
         count = 50
-        mad_agent = MADDPG_agent((agent.x, agent.y), goal, count, temp, cool, e_th, obstacles)
+        mad_agent = MADDPG_agent((agent.x, agent.y), goal, count, temp, cool, e_th, obstacles, agent.agent_id)
         agent_objects.append(mad_agent)
     return agent_objects
 
@@ -186,21 +186,26 @@ class Algorithm:
     def apf_search(self, goal):
         raise NotImplementedError
 
-    def mad_search(self, goal):
+    def mad_search(self):
         q = []
         y = .54  # discount value, also currently
+        paths = []
 
         for episode in range(0, 100):
             new_gradient = []
             past_gradient = []
             for agent in self.list_of_agents:
                 path, length = agent.action()
+
+                # update rewards and gradients
                 q[episode][agent] = agent.reward(path[-1], path[-2]) + y * max(
                     agent.reward(path[-1], path[-2]))  # needs to be 2D list
                 past_gradient[agent] = (q[episode - 2][agent] - q[episode - 1][agent]) / 2
                 new_gradient[agent] = (q[episode - 1][agent] - q[episode][agent]) / 2
 
-                # no current storage for path, please add below
+                # update total paths var
+                for loc in path:
+                    paths[agent.agent_id].append(loc)
 
             compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
 
@@ -212,6 +217,8 @@ class Algorithm:
                     temp_update = mad_agent.temp - 100
                     count_update = mad_agent.count - 40
                     mad_agent.update_critic(e_update, cool_update, temp_update, count_update)
+
+        return paths
 
     def grey_wolf_search(self, goal):
         raise NotImplementedError
@@ -229,12 +236,13 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     obstacles = obstacles_in
     goal_position = goal_in
 
-    # Create an instance of the Algorithm class
-    algorithm = Algorithm(agents, obstacles)
 
     # Find paths for each agent depending on search method
     # Add the way your algorithm is accessed here
     if algorithm_type == "A Star":
+        # Create an instance of the Algorithm class
+        algorithm = Algorithm(agents, obstacles)
+
         paths = algorithm.a_star_search(goal_position)
     elif algorithm_type == "APF":
         raise NotImplementedError
@@ -242,7 +250,8 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         raise NotImplementedError
     elif algorithm_type != "MAD":
         mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
-        raise NotImplementedError
+        mad_algorithm = Algorithm(mad_agents, obstacles)
+        paths = mad_algorithm.mad_search()
     else:
         print("invalid algorithm")
 
