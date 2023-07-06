@@ -1,5 +1,9 @@
+import random
+
 import pygame
 import heapq
+from maddpg_code import *
+import statistics
 
 # Constants
 WIDTH = 800  # Width of the simulation window
@@ -52,6 +56,28 @@ class Obstacle:
 
     def draw(self, screen):
         pygame.draw.circle(screen, BLACK, (self.x, self.y), self.radius)
+
+
+# ******* new addition below   *******************
+
+def create_mad_agents(min_x, max_x, min_y, max_y, num_agents):
+    # list to contain all agents
+    agent_objects = []
+    #
+
+    for agent_id in range(1, num_agents + 1):
+        x = int(random.uniform(min_x, max_x))
+        y = int(random.uniform(min_y, max_y))
+        e_th = .56*random.uniform(2, max_y)
+        cool = 0.05*random.uniform(min_y, max_y)
+        temp = 150
+        count = 50
+        mad_agent = MADDPG_agent(agent_id, x, y, count, temp, cool, e_th)
+        agent_objects.append(mad_agent)
+    return agent_objects
+
+
+# ************************************************************
 
 
 class Algorithm:
@@ -128,7 +154,33 @@ class Algorithm:
         raise NotImplementedError
 
     def mad_search(self, goal):
-        raise NotImplementedError
+        q = []
+        y = .54  # discount value, also currently
+
+        for episode in range(0, 100):
+            new_gradient = []
+            past_gradient = []
+            for agent in self.list_of_agents:
+                path, length = agent.action()
+                q[episode][agent] = agent.reward(path[-1], path[-2]) + y * max(
+                    agent.reward(path[-1], path[-2]))  # needs to be 2D list
+                past_gradient[agent] = (q[episode - 2][agent] - q[episode - 1][agent]) / 2
+                new_gradient[agent] = (q[episode - 1][agent] - q[episode][agent]) / 2
+
+                # no current storage for path, please add below
+
+            compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
+
+            if compare > 0:
+                for agent in self.list_of_agents():
+                    # currently arbitrary
+                    e_update= e_th_1 - .03
+                    cool_update = cool_rate_1 - .1
+                    temp_update = temp_1 - 100
+                    count_update = count - 40
+                    agent.update_critic(e_update,cool_update, temp_update,count_update)
+
+
 
     def grey_wolf_search(self, goal):
         raise NotImplementedError
@@ -161,8 +213,6 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         raise NotImplementedError
     else:
         print("invalid algorithm")
-
-
 
     # Game loop
     running = True
