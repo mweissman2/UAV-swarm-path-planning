@@ -80,6 +80,8 @@ def create_mad_agents(min_x, max_x, min_y, max_y, num_agents):
 # ************************************************************
 
 
+
+
 class Algorithm:
     def __init__(self, list_of_agents, obstacles):
         self.list_of_agents = list_of_agents
