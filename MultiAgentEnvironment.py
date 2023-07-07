@@ -61,7 +61,7 @@ class Obstacle:
 
 # ******* new addition below   *******************
 
-def create_mad_agents(min_x, max_x, min_y, max_y, num_agents):
+def create_mad_agents(min_x, max_x, min_y, max_y, num_agents, goal, obstacles):
     # list to contain all agents
     agent_objects = []
     #
@@ -73,7 +73,7 @@ def create_mad_agents(min_x, max_x, min_y, max_y, num_agents):
         cool = 0.05 * random.uniform(min_y, max_y)
         temp = 150
         count = 50
-        mad_agent = MADDPG_agent(agent_id, x, y, count, temp, cool, e_th)
+        mad_agent = MADDPG_agent((x, y), goal, count, temp, cool, e_th, obstacles, agent_id)
         agent_objects.append(mad_agent)
     return agent_objects
 
@@ -86,7 +86,7 @@ def create_mad_agents_from_agents(agents_in, goal, obstacles):
         # edit parameter initialization at some point
         # might be randomized later
         e_th = .1
-        cool = 0.15
+        cool = 0.96
         temp = 1500
         count = 50
         mad_agent = MADDPG_agent((agent.x, agent.y), goal, count, temp, cool, e_th, obstacles, agent.agent_id)
@@ -122,9 +122,9 @@ class Algorithm:
 
     def a_star_search(self, goal):
         # Heuristic function (Euclidean distance)
-        def heuristic(node, goal):
+        def heuristic(node, goal_in):
             x, y = node
-            goal_x, goal_y = goal
+            goal_x, goal_y = goal_in
             return ((x - goal_x) ** 2 + (y - goal_y) ** 2) ** 0.5
 
         # Check if a given node is valid
@@ -198,7 +198,7 @@ class Algorithm:
             new_gradient.append(0)
             past_gradient.append(0)
 
-        for episode in range(0, 1000):
+        for episode in range(0, 2000):
 
             for agent in self.list_of_agents:
                 path, length, reward = agent.action()
@@ -215,14 +215,16 @@ class Algorithm:
 
                 compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
                 if compare <= 0:
-                    print("updating params")
+                    print("updating params, compare: " + str(compare))
                     for mad_agent in self.list_of_agents:
                         # currently arbitrary
-                        e_update = mad_agent.e_th * 0.9
-                        cool_update = mad_agent.cool_rate * 0.9
-                        temp_update = mad_agent.temp * mad_agent.cool_rate
+                        e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
+                        cool_update = (mad_agent.cool_rate + 0.1) * 0.99
+                        temp_update = (mad_agent.temp + 0.4) * mad_agent.cool_rate  # gets smaller -> more risky
                         count_update = mad_agent.count - 5
                         mad_agent.update_critic(e_update, cool_update, temp_update, count_update)
+                else:
+                    print("done good, compare: " + str(compare))
 
         for agent in self.list_of_agents:
             paths.append(agent.long_mem)
@@ -244,6 +246,7 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     agents = agents_in
     obstacles = obstacles_in
     goal_position = goal_in
+    paths = []
 
     # Find paths for each agent depending on search method
     # Add the way your algorithm is accessed here
@@ -261,7 +264,7 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
         mad_algorithm = Algorithm(mad_agents, obstacles)
         paths = mad_algorithm.mad_search()
-        print(paths)
+        # print(paths)
     else:
         print("invalid algorithm")
 
