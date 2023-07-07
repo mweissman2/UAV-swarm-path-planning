@@ -4,6 +4,7 @@ import pygame
 import heapq
 from maddpg_code import *
 import statistics
+import numpy
 
 # Constants
 WIDTH = 800  # Width of the simulation window
@@ -83,9 +84,10 @@ def create_mad_agents_from_agents(agents_in, goal, obstacles):
     #
     for agent in agents_in:
         # edit parameter initialization at some point
+        # might be randomized later
         e_th = .56
-        cool = 0.05
-        temp = 150
+        cool = 0.15
+        temp = 1500
         count = 50
         mad_agent = MADDPG_agent((agent.x, agent.y), goal, count, temp, cool, e_th, obstacles, agent.agent_id)
         agent_objects.append(mad_agent)
@@ -192,31 +194,34 @@ class Algorithm:
         paths = []
 
         for episode in range(0, 100):
-            new_gradient = []
-            past_gradient = []
+            new_gradient = [0]*len(self.list_of_agents)
+            past_gradient = [0]*len(self.list_of_agents)
             for agent in self.list_of_agents:
-                path, length = agent.action()
+                path, length, reward = agent.action()
 
                 # update rewards and gradients
-                q[episode][agent] = agent.reward(path[-1], path[-2]) + y * max(
-                    agent.reward(path[-1], path[-2]))  # needs to be 2D list
-                past_gradient[agent] = (q[episode - 2][agent] - q[episode - 1][agent]) / 2
-                new_gradient[agent] = (q[episode - 1][agent] - q[episode][agent]) / 2
+                agent.reward_mem.append(reward + y * agent.next_reward())  # this is q-value stored in agent
+                if episode > 1:
+                    past_gradient[agent.agent_id] = (agent.reward_mem[episode - 2] - agent.reward_mem[episode - 1]) / 2
+                    new_gradient[agent.agent_id] = (agent.reward_mem[episode - 1] - agent.reward_mem[episode]) / 2
 
                 # update total paths var
-                for loc in path:
-                    paths[agent.agent_id].append(loc)
 
-            compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
+            if episode > 1:
 
-            if compare > 0:
-                for mad_agent in self.list_of_agents():
-                    # currently arbitrary
-                    e_update = mad_agent.e_th - .03
-                    cool_update = mad_agent.cool_rate - .1
-                    temp_update = mad_agent.temp - 100
-                    count_update = mad_agent.count - 40
-                    mad_agent.update_critic(e_update, cool_update, temp_update, count_update)
+                compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
+
+                if compare < 0:
+                    for mad_agent in self.list_of_agents():
+                        # currently arbitrary
+                        e_update = mad_agent.e_th - .03
+                        cool_update = mad_agent.cool_rate - .05
+                        temp_update = mad_agent.temp - 100
+                        count_update = mad_agent.count - 5
+                        mad_agent.update_critic(e_update, cool_update, temp_update, count_update)
+
+        for agent in self.list_of_agents:
+            paths.append(agent.long_mem)
 
         return paths
 
@@ -235,7 +240,6 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     agents = agents_in
     obstacles = obstacles_in
     goal_position = goal_in
-
 
     # Find paths for each agent depending on search method
     # Add the way your algorithm is accessed here

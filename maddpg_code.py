@@ -18,11 +18,15 @@ class MADDPG_agent:
     def __init__(self, initial, goal, count, temp, cool, e_th, obstacles, ID):
         self.position = initial             # Current position of the agent, 1x2 list
         self.goal = goal                   # Target position to reach, 1x2 list
-        self.path =[]                       # initialize the path
+        self.path =[]                       # initialize short term memory
         self.count = count
         self.path_length = 0
         self.obstacles = obstacles
         self.agent_id = ID
+        self.next_reward_neighbor = []
+        self.reward_mem = []
+        self.long_mem = []                  # long term memory path
+
 
         # algorithm parameters
         self.temp = temp
@@ -47,13 +51,10 @@ class MADDPG_agent:
                 valid_neighbors.append(neighbor)
         return valid_neighbors
 
-    def euclid_distance(self, position_now):  # next needs to be a list with two numbers, one x and one y
-        x1, y1 =  position_now[0], position_now[1]
-        x2, y2 =  self.goal[0], self.goal[1]
+    def euclid_distance(self, position_now, target):  # next needs to be a list with two numbers, one x and one y
+        x1, y1 = position_now[0], position_now[1]
+        x2, y2 = target[0], target[1]
         return ((x1 - x2)**2 + (x2 - y2)**2) ** 0.5
-
-    def replay_buffer(self, current, next):   #replay buffer stores the total distance achieved during the episode
-        self.path_length += ((current[0]-next[0])**2+(current[1]-next[1])**2)**0.5
 
 
     def update_critic(self,e_update, cool_update, temp_update,count_update):
@@ -76,15 +77,22 @@ class MADDPG_agent:
         return self.e_th, self.temp, self.cool_rate
 
 
-    def reward(self,final_x,final_y):
+    def reward(self,x,y):
         # used to define the reward for the agents, defined as the euclidean distance- cost
-        x1, y1 = final_x, final_y
+        x1, y1 = x, y
         x2, y2 = self.goal[0], self.goal[1]
-        # Debugging code
-        # print(self.goal[0])
-        # print(self.goal)
-        # print(x1)
-        return (abs(x1 - x2) + abs(y1 - y2)) ** 0.5         # needs to change to manhattan heuristic
+
+        max_reward = (WIDTH**2+HEIGHT**2)**0.5
+        reward = 0
+        for obstacle in self.obstacles:
+            p0 = AGENT_RADIUS + obstacle.radius  # Influence radius of F_rep
+            distance = self.euclid_distance((x,y),(obstacle.x,obstacle.y))
+            if distance < p0:
+                reward = 0
+            else:
+                reward = max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5
+
+        return reward
 
 
 
@@ -99,10 +107,10 @@ class MADDPG_agent:
         current_pos = self.position   # the new initial position will be wherever the robot is after 5 transitions
         sa_path = [current_pos]        #overwrite the old sa_path
 
-        for i in range(0,4):                        #every episode has 5 transitions
+        for i in range(0,5):                        #every episode has 5 transitions
             # later, the action choice will be based on something else
             neighbor = random.choice(self.get_neighbors(current_pos))  # choose a random neighbor, from the surrounding grid
-            current_energy = self.euclid_distance(current_pos)          #find current energy by approximating distance to target
+            current_energy = self.euclid_distance(current_pos,self.goal)   #find current energy by approximating distance to target
             next_energy = ((current_pos[0]-neighbor[0])**2+(current_pos[1]-neighbor[1])**2)**.5
             delta = current_energy - next_energy                        # calculating energy cost delta for criterion calculation
 
@@ -116,24 +124,72 @@ class MADDPG_agent:
                 return sa_path, self.path_length
 
             if delta > 0:
-                self.replay_buffer(current_pos, neighbor)
                 current_pos = neighbor
                 sa_path.append(current_pos)         # choosing best neighbor as next node if energy delta > 0
+                self.long_mem.append(current_pos)
 
 
             elif prob > e_th:
-                self.replay_buffer(current_pos, neighbor)
                 current_pos = neighbor
                 sa_path.append(current_pos) # choosing best neighbor as next node if probability of delta > 0 is higher
+                self.long_mem.append(current_pos)
 
             self.count_critic()
             temp *= cool_rate
 
-        return sa_path, self.path_length                         # return path route and distance to the target, euclid distance
+        self.next_reward_neighbor = current_pos
+        return sa_path, self.path_length, self.reward(current_pos[0],current_pos[1])                         # return path route and distance to the target, euclid distance
+
+    def next_reward(self):
+        # maybe add obstacle repulsion later
+
+        max_reward = (WIDTH ** 2 + HEIGHT ** 2) ** 0.5
+        #iterate over all possible next positions
+        x_goal, y_goal = self.goal[0], self.goal[1]
+        reward_1 = 0
+        x1, y1 = self.next_reward_neighbor[0]+1,  self.next_reward_neighbor[1]
+        for obstacle in self.obstacles:
+            p0 = AGENT_RADIUS + obstacle.radius  # Influence radius of F_rep
+            distance = self.euclid_distance((x1, y1), (obstacle.x, obstacle.y))
+            if distance < p0:
+                reward_1 = 0
+            else:
+                reward_1 = max_reward - (abs(x1 - x_goal) + abs(y1 - y_goal)) ** 0.5
+
+        x2, y2 = self.next_reward_neighbor[0]-1,  self.next_reward_neighbor[1]
+        reward_2 = 0
+        for obstacle in self.obstacles:
+            p0 = AGENT_RADIUS + obstacle.radius  # Influence radius of F_rep
+            distance = self.euclid_distance((x2, y2), (obstacle.x, obstacle.y))
+            if distance < p0:
+                reward_2 = 0
+            else:
+                reward_2 = max_reward - (abs(x2 - x_goal) + abs(y2 - y_goal)) ** 0.5
+        x3, y3 = self.next_reward_neighbor[0], self.next_reward_neighbor[1] +1
+        reward_3 = 0
+        for obstacle in self.obstacles:
+            p0 = AGENT_RADIUS + obstacle.radius  # Influence radius of F_rep
+            distance = self.euclid_distance((x3, y3), (obstacle.x, obstacle.y))
+            if distance < p0:
+                reward_3 = 0
+            else:
+                reward_3 = max_reward - (abs(x3 - x_goal) + abs(y3 - y_goal)) ** 0.5
+        x4, y4 = self.next_reward_neighbor[0], self.next_reward_neighbor[1] - 1
+        reward_4 = 0
+        for obstacle in self.obstacles:
+            p0 = AGENT_RADIUS + obstacle.radius  # Influence radius of F_rep
+            distance = self.euclid_distance((x4, y4), (obstacle.x, obstacle.y))
+            if distance < p0:
+                reward_4 = 0
+            else:
+                reward_4 = max_reward - (abs(x4 - x_goal) + abs(y4 - y_goal)) ** 0.5
+
+        return max(reward_1,reward_2,reward_3,reward_4)
 
 
 
-# # Below would be implemented in the MultiAgentEnvironment.py file under function mad_search
+
+    # # Below would be implemented in the MultiAgentEnvironment.py file under function mad_search
 # # ------------------------------------------------------------------------------------------------------------------
 #
 # N = 100                     # number of episodes
