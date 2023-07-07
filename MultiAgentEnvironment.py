@@ -192,18 +192,22 @@ class Algorithm:
         q = []
         y = .54  # discount value, also currently
         paths = []
+        new_gradient = []
+        past_gradient = []
+        for agent in self.list_of_agents:
+            new_gradient.append(0)
+            past_gradient.append(0)
 
-        for episode in range(0, 100):
-            new_gradient = [0]*len(self.list_of_agents)
-            past_gradient = [0]*len(self.list_of_agents)
+        for episode in range(0, 1000):
+
             for agent in self.list_of_agents:
                 path, length, reward = agent.action()
 
                 # update rewards and gradients
                 agent.reward_mem.append(reward + y * agent.next_reward())  # this is q-value stored in agent
                 if episode > 1:
-                    past_gradient[agent.agent_id] = (agent.reward_mem[episode - 2] - agent.reward_mem[episode - 1]) / 2
-                    new_gradient[agent.agent_id] = (agent.reward_mem[episode - 1] - agent.reward_mem[episode]) / 2
+                    past_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 2] - agent.reward_mem[episode - 1]) / 2
+                    new_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 1] - agent.reward_mem[episode]) / 2
 
                 # update total paths var
 
@@ -212,7 +216,7 @@ class Algorithm:
                 compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
 
                 if compare < 0:
-                    for mad_agent in self.list_of_agents():
+                    for mad_agent in self.list_of_agents:
                         # currently arbitrary
                         e_update = mad_agent.e_th - .03
                         cool_update = mad_agent.cool_rate - .05

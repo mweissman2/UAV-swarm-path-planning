@@ -86,7 +86,7 @@ class MADDPG_agent:
         reward = 0
         for obstacle in self.obstacles:
             p0 = AGENT_RADIUS + obstacle.radius  # Influence radius of F_rep
-            distance = self.euclid_distance((x,y),(obstacle.x,obstacle.y))
+            distance = self.euclid_distance((x, y), (obstacle.x, obstacle.y))
             if distance < p0:
                 reward = 0
             else:
@@ -105,14 +105,16 @@ class MADDPG_agent:
     def action(self, temp=1500, cool_rate=0.25, e_th=.56):   # these params will be updated by critic
         # set city and count parameters
         current_pos = self.position   # the new initial position will be wherever the robot is after 5 transitions
-        sa_path = [current_pos]        #overwrite the old sa_path
+        sa_path = [current_pos]        # overwrite the old sa_path
 
-        for i in range(0,5):                        #every episode has 5 transitions
+        for i in range(0,5):                        # every episode has 5 transitions
             # later, the action choice will be based on something else
-            neighbor = random.choice(self.get_neighbors(current_pos))  # choose a random neighbor, from the surrounding grid
-            current_energy = self.euclid_distance(current_pos,self.goal)   #find current energy by approximating distance to target
-            next_energy = ((current_pos[0]-neighbor[0])**2+(current_pos[1]-neighbor[1])**2)**.5
-            delta = current_energy - next_energy                        # calculating energy cost delta for criterion calculation
+            neighbor = random.choice(self.get_neighbors(current_pos)) # choose a random neighbor, from the surrounding grid
+
+            current_energy = self.reward(current_pos[0], current_pos[1])
+            next_energy = self.reward(neighbor[0], neighbor[1])
+
+            delta = current_energy - next_energy         # calculating energy cost delta for criterion calculation
 
             # Occasionally the probability calc is not a real number result, if so probability is set to 0
             try:
@@ -121,13 +123,13 @@ class MADDPG_agent:
                 prob = 0
 
             if self.goal == current_pos:
-                return sa_path, self.path_length
+                sa_path.append(current_pos)
+                self.long_mem.append(current_pos)
 
-            if delta > 0:
+            elif delta < 0:
                 current_pos = neighbor
                 sa_path.append(current_pos)         # choosing best neighbor as next node if energy delta > 0
                 self.long_mem.append(current_pos)
-
 
             elif prob > e_th:
                 current_pos = neighbor
@@ -144,45 +146,22 @@ class MADDPG_agent:
         # maybe add obstacle repulsion later
 
         max_reward = (WIDTH ** 2 + HEIGHT ** 2) ** 0.5
+
+        # sorry I overwrote ur code sean just cleaned the function up, does the exact same thing
+
         #iterate over all possible next positions
-        x_goal, y_goal = self.goal[0], self.goal[1]
-        reward_1 = 0
-        x1, y1 = self.next_reward_neighbor[0]+1,  self.next_reward_neighbor[1]
-        for obstacle in self.obstacles:
-            p0 = AGENT_RADIUS + obstacle.radius  # Influence radius of F_rep
-            distance = self.euclid_distance((x1, y1), (obstacle.x, obstacle.y))
-            if distance < p0:
-                reward_1 = 0
-            else:
-                reward_1 = max_reward - (abs(x1 - x_goal) + abs(y1 - y_goal)) ** 0.5
+        x1, y1 = self.next_reward_neighbor[0] + 1, self.next_reward_neighbor[1]
+        reward_1 = self.reward(x1, y1)
 
         x2, y2 = self.next_reward_neighbor[0]-1,  self.next_reward_neighbor[1]
-        reward_2 = 0
-        for obstacle in self.obstacles:
-            p0 = AGENT_RADIUS + obstacle.radius  # Influence radius of F_rep
-            distance = self.euclid_distance((x2, y2), (obstacle.x, obstacle.y))
-            if distance < p0:
-                reward_2 = 0
-            else:
-                reward_2 = max_reward - (abs(x2 - x_goal) + abs(y2 - y_goal)) ** 0.5
+        reward_2 = self.reward(x2, y2)
+
         x3, y3 = self.next_reward_neighbor[0], self.next_reward_neighbor[1] +1
-        reward_3 = 0
-        for obstacle in self.obstacles:
-            p0 = AGENT_RADIUS + obstacle.radius  # Influence radius of F_rep
-            distance = self.euclid_distance((x3, y3), (obstacle.x, obstacle.y))
-            if distance < p0:
-                reward_3 = 0
-            else:
-                reward_3 = max_reward - (abs(x3 - x_goal) + abs(y3 - y_goal)) ** 0.5
+        reward_3 = self.reward(x3, y3)
+
         x4, y4 = self.next_reward_neighbor[0], self.next_reward_neighbor[1] - 1
-        reward_4 = 0
-        for obstacle in self.obstacles:
-            p0 = AGENT_RADIUS + obstacle.radius  # Influence radius of F_rep
-            distance = self.euclid_distance((x4, y4), (obstacle.x, obstacle.y))
-            if distance < p0:
-                reward_4 = 0
-            else:
-                reward_4 = max_reward - (abs(x4 - x_goal) + abs(y4 - y_goal)) ** 0.5
+        reward_4 = self.reward(x4, y4)
+
 
         return max(reward_1,reward_2,reward_3,reward_4)
 
