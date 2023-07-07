@@ -85,7 +85,7 @@ def create_mad_agents_from_agents(agents_in, goal, obstacles):
     for agent in agents_in:
         # edit parameter initialization at some point
         # might be randomized later
-        e_th = .56
+        e_th = .1
         cool = 0.15
         temp = 1500
         count = 50
@@ -214,13 +214,13 @@ class Algorithm:
             if episode > 1:
 
                 compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
-
-                if compare < 0:
+                if compare <= 0:
+                    print("updating params")
                     for mad_agent in self.list_of_agents:
                         # currently arbitrary
-                        e_update = mad_agent.e_th - .03
-                        cool_update = mad_agent.cool_rate - .05
-                        temp_update = mad_agent.temp - 100
+                        e_update = mad_agent.e_th * 0.9
+                        cool_update = mad_agent.cool_rate * 0.9
+                        temp_update = mad_agent.temp * mad_agent.cool_rate
                         count_update = mad_agent.count - 5
                         mad_agent.update_critic(e_update, cool_update, temp_update, count_update)
 

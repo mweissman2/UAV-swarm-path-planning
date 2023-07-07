@@ -102,45 +102,48 @@ class MADDPG_agent:
     # an episode will contain 5 transitions
 
     # the agent's internal critic is written into the if statements for the algo
-    def action(self, temp=1500, cool_rate=0.25, e_th=.56):   # these params will be updated by critic
+    def action(self):   # these params will be updated by critic
         # set city and count parameters
-        current_pos = self.position   # the new initial position will be wherever the robot is after 5 transitions
-        sa_path = [current_pos]        # overwrite the old sa_path
+        sa_path = [self.position]        # overwrite the old sa_path
 
-        for i in range(0,5):                        # every episode has 5 transitions
+        for i in range(0, 4):                        # every episode has 5 transitions
             # later, the action choice will be based on something else
-            neighbor = random.choice(self.get_neighbors(current_pos)) # choose a random neighbor, from the surrounding grid
+            neighbor = random.choice(self.get_neighbors(self.position)) # choose a random neighbor, from the surrounding grid
 
-            current_energy = self.reward(current_pos[0], current_pos[1])
+            current_energy = self.reward(self.position[0], self.position[1])
             next_energy = self.reward(neighbor[0], neighbor[1])
 
             delta = current_energy - next_energy         # calculating energy cost delta for criterion calculation
 
             # Occasionally the probability calc is not a real number result, if so probability is set to 0
             try:
-                prob = math.exp(-delta / temp)
+                prob = math.exp(-delta / self.temp)
             except:
                 prob = 0
 
-            if self.goal == current_pos:
-                sa_path.append(current_pos)
-                self.long_mem.append(current_pos)
+            if delta < 0:
+                print("accepted best option")
+                print(self.position)
+                print(neighbor)
+                print(current_energy)
+                print(next_energy)
+                self.position = neighbor
 
-            elif delta < 0:
-                current_pos = neighbor
-                sa_path.append(current_pos)         # choosing best neighbor as next node if energy delta > 0
-                self.long_mem.append(current_pos)
+            elif prob > self.e_th:
+                print("excepted possibly worse option")
+                self.position = neighbor
 
-            elif prob > e_th:
-                current_pos = neighbor
-                sa_path.append(current_pos) # choosing best neighbor as next node if probability of delta > 0 is higher
-                self.long_mem.append(current_pos)
+            else:
+                print("stayed")
+
+            sa_path.append(self.position)
+            self.long_mem.append(self.position)
 
             self.count_critic()
-            temp *= cool_rate
+            self.temp *= self.cool_rate
 
-        self.next_reward_neighbor = current_pos
-        return sa_path, self.path_length, self.reward(current_pos[0],current_pos[1])                         # return path route and distance to the target, euclid distance
+        self.next_reward_neighbor = self.position
+        return sa_path, self.path_length, self.reward(self.position[0],self.position[1])                         # return path route and distance to the target, euclid distance
 
     def next_reward(self):
         # maybe add obstacle repulsion later
