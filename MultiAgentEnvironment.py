@@ -1,7 +1,7 @@
 import random
-
 import pygame
 import heapq
+import math
 from maddpg_code import *
 import statistics
 import numpy
@@ -12,6 +12,9 @@ HEIGHT = 600  # Height of the simulation window
 AGENT_RADIUS = 10  # Radius of the agent
 OBSTACLE_RADIUS = 30  # Radius of the obstacles
 MOVEMENT_SPEED = 3  # Movement speed of the agent
+
+# For APF
+SEARCH_RADIUS = 50
 
 # Colors
 BLACK = (0, 0, 0)
@@ -108,7 +111,8 @@ def create_random_agents(min_x, max_x, min_y, max_y, num_agents):
 def create_agent_line(right_x, right_y, num_agents):
     agent_objects = []
     for agent_id in range(1, num_agents + 1):
-        agent = Agent(agent_id, right_x - 2 * agent_id, right_y)
+        # agent = Agent(agent_id, right_x - 2*agent_id, right_y)
+        agent = Agent(agent_id, right_x, right_y - 20 * agent_id)
         agent_objects.append(agent)
     return agent_objects
 
@@ -184,7 +188,91 @@ class Algorithm:
         return paths
 
     def apf_search(self, goal):
-        raise NotImplementedError
+        # Compute the attractive force between the agent and the goal
+        def attractive_force(agent_pos, goal_pos):
+            k_att = 50.0  # Attractive force gain
+            dx = (goal_pos[0] - agent_pos[0])
+            dy = goal_pos[1] - agent_pos[1]
+            angle = math.atan2(dy, dx)  # The direction doesn't matter if the UAVs are represented as circles
+            return k_att * dx, k_att * dy
+
+        # Compute the repulsive force between the agent and an obstacle
+        def repulsive_force(agent_pos, obstacle_pos, obstacle_radius):
+            k_rep = 100.0  # Repulsive force gain
+            buffer = 0
+            p0 = AGENT_RADIUS + obstacle_radius + buffer  # Influence radius of F_rep
+            obst_dist_x = agent_pos[0] - obstacle_pos[0]
+            obst_dist_y = agent_pos[1] - obstacle_pos[1]
+            dist = math.sqrt(obst_dist_x ** 2 + obst_dist_y ** 2)  # Dist btwn UAV and obstacle
+            if dist <= SEARCH_RADIUS + obstacle_radius:  # checks if obstacle is in search radius
+                if dist <= p0:
+                    x_rep = k_rep * ((1 / obst_dist_x - (1 / p0)) * (1 / obst_dist_x) ** 2)
+                    y_rep = k_rep * ((1 / obst_dist_y - (1 / p0)) * (1 / obst_dist_y) ** 2)
+                    return x_rep, y_rep
+                else:
+                    return (0.0, 0.0)
+            else:
+                return (0.0, 0.0)
+
+        # Compute the total force acting on the agent at its current position
+        def total_force(agent_pos, goal_pos, obstacles):
+            force_x, force_y = attractive_force(agent_pos, goal_pos)
+
+            for obstacle in obstacles:
+                rep_force_x, rep_force_y = repulsive_force(agent_pos, (obstacle.x, obstacle.y), obstacle.radius)
+                force_x += rep_force_x
+                force_y += rep_force_y
+            return (force_x, force_y)
+
+        # Move the agent towards the goal position based on the total force
+        def move_towards(agent_pos, goal_pos, obstacles):
+            force_x, force_y = total_force(agent_pos, goal_pos, obstacles)
+            force_magnitude = math.sqrt(force_x ** 2 + force_y ** 2)
+            if force_magnitude > MOVEMENT_SPEED:
+                force_x /= force_magnitude
+                force_y /= force_magnitude
+                force_x *= MOVEMENT_SPEED
+                force_y *= MOVEMENT_SPEED
+
+            new_pos_x = agent_pos[0] + force_x
+            new_pos_y = agent_pos[1] + force_y
+
+            # Check for collision with obstacles and adjust the new position accordingly
+            for obstacle in obstacles:
+                dx = new_pos_x - obstacle.x
+                dy = new_pos_y - obstacle.y
+                distance = math.sqrt(dx ** 2 + dy ** 2)
+                if distance <= AGENT_RADIUS + obstacle.radius:
+                    angle = math.atan2(dy, dx)
+                    new_pos_x = obstacle.x + (AGENT_RADIUS + obstacle.radius) * math.cos(angle)
+                    new_pos_y = obstacle.y + (AGENT_RADIUS + obstacle.radius) * math.sin(angle)
+                    break
+
+            return (new_pos_x, new_pos_y)
+
+        paths = []
+
+        for agent in self.list_of_agents:
+
+            temp_path = [agent.start]
+            current_pos = agent.start
+
+            while True:
+                # Move towards the next position based on the total force
+                next_pos = move_towards(current_pos, goal, self.obstacles)
+                temp_path.append(next_pos)
+
+                # Check if the agent has reached the goal position
+                if math.sqrt((next_pos[0] - goal[0]) ** 2 + (next_pos[1] - goal[1]) ** 2) <= MOVEMENT_SPEED:
+                    break
+
+                current_pos = next_pos
+
+            paths.append(temp_path)
+        for agent, temp_path in zip(self.list_of_agents, paths):
+            agent.path = temp_path[1:]
+
+        return paths
 
     def mad_search(self):
         q = []
@@ -258,7 +346,8 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         paths = algorithm.a_star_search(goal_position)
         print(paths)
     elif algorithm_type == "APF":
-        raise NotImplementedError
+        algorithm = Algorithm(agents, obstacles)
+        paths = algorithm.apf_search(goal_position)
     elif algorithm_type == "Grey Wolf":
         raise NotImplementedError
     elif algorithm_type == "MAD":
@@ -283,6 +372,11 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
 
         # Clear the screen
         screen.fill(WHITE)
+
+        # Draw the search radius
+        if algorithm_type == "APF":
+            for agent in agents:
+                pygame.draw.circle(screen, RED, (agent.x, agent.y), SEARCH_RADIUS)
 
         # Draw the agent
         # Draw the start and goal positions
