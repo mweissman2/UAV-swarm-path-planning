@@ -11,7 +11,7 @@ OBSTACLE_RADIUS = 30  # Radius of the obstacles
 MOVEMENT_SPEED = 3  # Movement speed of the agent
 
 # For APF
-SEARCH_RADIUS = 150
+SEARCH_RADIUS = 50
 
 # Colors
 BLACK = (0, 0, 0)
@@ -161,7 +161,8 @@ class Algorithm:
         # Compute the repulsive force between the agent and an obstacle
         def repulsive_force(agent_pos, obstacle_pos, obstacle_radius):
             k_rep = 100.0  # Repulsive force gain
-            p0 = AGENT_RADIUS + obstacle_radius  # Influence radius of F_rep
+            buffer = 0
+            p0 = AGENT_RADIUS + obstacle_radius + buffer  # Influence radius of F_rep
             obst_dist_x = agent_pos[0] - obstacle_pos[0]
             obst_dist_y = agent_pos[1] - obstacle_pos[1]
             dist = math.sqrt(obst_dist_x ** 2 + obst_dist_y ** 2)  # Dist btwn UAV and obstacle
