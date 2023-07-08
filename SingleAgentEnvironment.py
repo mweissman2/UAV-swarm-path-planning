@@ -1,5 +1,4 @@
 import random
-
 import pygame
 import heapq
 import math
@@ -20,7 +19,6 @@ WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
-
 
 class Agent:
     def __init__(self, x, y):
@@ -60,7 +58,6 @@ class Obstacle:
     def draw(self, screen):
         pygame.draw.circle(screen, BLACK, (self.x, self.y), self.radius)
 
-
 def create_obstacle_objects(min_x, max_x, min_y, max_y, min_size, max_size, num_obstacles):
     obstacle_objects = []
     for _ in range(num_obstacles):
@@ -70,7 +67,6 @@ def create_obstacle_objects(min_x, max_x, min_y, max_y, min_size, max_size, num_
         obstacle = Obstacle(x, y, size)
         obstacle_objects.append(obstacle)
     return obstacle_objects
-
 
 class Algorithm:
     def __init__(self, agent, obstacles):
@@ -217,10 +213,6 @@ class Algorithm:
     def mad_search(self, goal):
         raise NotImplementedError
 
-    def grey_wolf_search(self, goal):
-        raise NotImplementedError
-
-
 def run_scenario_single_agent(obstacles_in, agent_in, goal_in, algorithm_type):
     # Initialize Pygame
     pygame.init()
@@ -245,12 +237,12 @@ def run_scenario_single_agent(obstacles_in, agent_in, goal_in, algorithm_type):
         path = algorithm.a_star_search(goal)
         agent.path = path.copy()
     elif algorithm_type == "APF":
-        # Find path using A* search algorithm
         path = algorithm.apf_search(goal)
         agent.path = path.copy()
-    elif algorithm_type != "Grey Wolf":
-        raise NotImplementedError
-    elif algorithm_type != "MAD":
+    elif algorithm_type != "Simplified GWO":
+        path = algorithm.simplified_gwo_search(goal)
+        agent.path = path.copy()
+    elif algorithm_type == "MAD":
         raise NotImplementedError
     else:
         print("invalid algorithm")
