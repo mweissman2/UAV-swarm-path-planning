@@ -348,7 +348,7 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     elif algorithm_type == "APF":
         algorithm = Algorithm(agents, obstacles)
         paths = algorithm.apf_search(goal_position)
-    elif algorithm_type != "Grey Wolf":
+    elif algorithm_type == "Grey Wolf":
         raise NotImplementedError
     elif algorithm_type == "MAD":
         mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
