@@ -86,10 +86,8 @@ def create_mad_agents_from_agents(agents_in, goal, obstacles):
         # edit parameter initialization at some point
         # might be randomized later
         e_th = .1
-        cool = 0.96
         temp = 1500
-        count = 50
-        mad_agent = MADDPG_agent((agent.x, agent.y), goal, count, temp, cool, e_th, obstacles, agent.agent_id)
+        mad_agent = MADDPG_agent((agent.x, agent.y), goal, temp, e_th, obstacles, agent.agent_id)
         agent_objects.append(mad_agent)
     return agent_objects
 
@@ -219,12 +217,15 @@ class Algorithm:
                     for mad_agent in self.list_of_agents:
                         # currently arbitrary
                         e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
-                        cool_update = (mad_agent.cool_rate + 0.1) * 0.99
-                        temp_update = (mad_agent.temp + 0.4) * mad_agent.cool_rate  # gets smaller -> more risky
-                        count_update = mad_agent.count - 5
-                        mad_agent.update_critic(e_update, cool_update, temp_update, count_update)
+                        temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
+                        mad_agent.update_critic(e_update, temp_update)
                 else:
                     print("done good, compare: " + str(compare))
+                    for mad_agent in self.list_of_agents:
+                        # currently arbitrary
+                        e_update = (mad_agent.e_th + 1) * 0.01  # increase necessary prob for bad moves
+                        temp_update = (mad_agent.temp + 0.05) * 0.01  # cool down, decrease prob
+                        mad_agent.update_critic(e_update, temp_update)
 
         for agent in self.list_of_agents:
             paths.append(agent.long_mem)

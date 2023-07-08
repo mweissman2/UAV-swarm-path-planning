@@ -14,11 +14,10 @@ MOVEMENT_SPEED = 3  # Movement speed of the agent
 
 # class for making individual agents
 class MADDPG_agent:
-    def __init__(self, initial, goal, count, temp, cool, e_th, obstacles, ID):
+    def __init__(self, initial, goal, temp, e_th, obstacles, ID):
         self.position = initial  # Current position of the agent, 1x2 list
         self.goal = goal  # Target position to reach, 1x2 list
         self.path = []  # initialize short term memory
-        self.count = count
         self.path_length = 0
         self.obstacles = obstacles
         self.agent_id = ID
@@ -28,7 +27,6 @@ class MADDPG_agent:
 
         # algorithm parameters
         self.temp = temp
-        self.cool_rate = cool
         self.e_th = e_th
 
     def is_valid(self, node):
@@ -54,23 +52,21 @@ class MADDPG_agent:
         x2, y2 = target[0], target[1]
         return ((x1 - x2) ** 2 + (x2 - y2) ** 2) ** 0.5
 
-    def update_critic(self, e_update, cool_update, temp_update, count_update):
+    def update_critic(self, e_update, temp_update):
         # update reward function
-        self.count = count_update
-        self.cool_rate = cool_update
         self.temp = temp_update
         self.e_th = e_update
 
-    def count_critic(self):  # agent count down critic
-        countdown = self.count
-        countdown -= 1
-        if countdown == 0:  # maybe make this some other variable instead of bool
-            return False
-        if countdown > 0:
-            return True
+    # def count_critic(self):  # agent count down critic
+    #     countdown = self.count
+    #     countdown -= 1
+    #     if countdown == 0:  # maybe make this some other variable instead of bool
+    #         return False
+    #     if countdown > 0:
+    #         return True
 
     def get_param(self):
-        return self.e_th, self.temp, self.cool_rate
+        return self.e_th, self.temp
 
     def reward(self, x, y):
         # used to define the reward for the agents, defined as the euclidean distance- cost
@@ -143,9 +139,6 @@ class MADDPG_agent:
 
             sa_path.append(self.position)
             self.long_mem.append(self.position)
-
-            self.count_critic()
-            # self.temp *= self.cool_rate
 
         self.next_reward_neighbor = self.position
         return sa_path, self.path_length, self.reward(self.position[0], self.position[1])  # return path route and distance to the target, euclid distance
