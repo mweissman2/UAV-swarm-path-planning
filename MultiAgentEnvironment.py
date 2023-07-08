@@ -2,6 +2,9 @@ import random
 import pygame
 import heapq
 import math
+from maddpg_code import *
+import statistics
+import numpy
 
 # Constants
 WIDTH = 800  # Width of the simulation window
@@ -49,6 +52,51 @@ class Agent:
         pygame.draw.circle(screen, GREEN, (self.x, self.y), AGENT_RADIUS)
 
 
+class Obstacle:
+    def __init__(self, x, y, radius):
+        self.x = x
+        self.y = y
+        self.radius = radius
+
+    def draw(self, screen):
+        pygame.draw.circle(screen, BLACK, (self.x, self.y), self.radius)
+
+
+# ******* new addition below   *******************
+
+def create_mad_agents(min_x, max_x, min_y, max_y, num_agents, goal, obstacles):
+    # list to contain all agents
+    agent_objects = []
+    #
+
+    for agent_id in range(1, num_agents + 1):
+        x = int(random.uniform(min_x, max_x))
+        y = int(random.uniform(min_y, max_y))
+        e_th = .56 * random.uniform(2, max_y)
+        cool = 0.05 * random.uniform(min_y, max_y)
+        temp = 150
+        count = 50
+        mad_agent = MADDPG_agent((x, y), goal, count, temp, cool, e_th, obstacles, agent_id)
+        agent_objects.append(mad_agent)
+    return agent_objects
+
+
+def create_mad_agents_from_agents(agents_in, goal, obstacles):
+    # list to contain all agents
+    agent_objects = []
+    #
+    for agent in agents_in:
+        # edit parameter initialization at some point
+        # might be randomized later
+        e_th = .1
+        temp = 1500
+        mad_agent = MADDPG_agent((agent.x, agent.y), goal, temp, e_th, obstacles, agent.agent_id)
+        agent_objects.append(mad_agent)
+    return agent_objects
+
+
+# ************************************************************
+
 # Generate random agents
 def create_random_agents(min_x, max_x, min_y, max_y, num_agents):
     agent_objects = []
@@ -69,16 +117,6 @@ def create_agent_line(right_x, right_y, num_agents):
     return agent_objects
 
 
-class Obstacle:
-    def __init__(self, x, y, radius):
-        self.x = x
-        self.y = y
-        self.radius = radius
-
-    def draw(self, screen):
-        pygame.draw.circle(screen, BLACK, (self.x, self.y), self.radius)
-
-
 class Algorithm:
     def __init__(self, list_of_agents, obstacles):
         self.list_of_agents = list_of_agents
@@ -86,9 +124,9 @@ class Algorithm:
 
     def a_star_search(self, goal):
         # Heuristic function (Euclidean distance)
-        def heuristic(node, goal):
+        def heuristic(node, goal_in):
             x, y = node
-            goal_x, goal_y = goal
+            goal_x, goal_y = goal_in
             return ((x - goal_x) ** 2 + (y - goal_y) ** 2) ** 0.5
 
         # Check if a given node is valid
@@ -236,8 +274,51 @@ class Algorithm:
 
         return paths
 
-    def mad_search(self, goal):
-        raise NotImplementedError
+    def mad_search(self):
+        q = []
+        y = .54  # discount value, also currently
+        paths = []
+        new_gradient = []
+        past_gradient = []
+        for agent in self.list_of_agents:
+            new_gradient.append(0)
+            past_gradient.append(0)
+
+        for episode in range(0, 2000):
+
+            for agent in self.list_of_agents:
+                path, length, reward = agent.action()
+
+                # update rewards and gradients
+                agent.reward_mem.append(reward + y * agent.next_reward())  # this is q-value stored in agent
+                if episode > 1:
+                    past_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 2] - agent.reward_mem[episode - 1]) / 2
+                    new_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 1] - agent.reward_mem[episode]) / 2
+
+                # update total paths var
+
+            if episode > 1:
+
+                compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
+                if compare <= 0:
+                    print("updating params, compare: " + str(compare))
+                    for mad_agent in self.list_of_agents:
+                        # currently arbitrary
+                        e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
+                        temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
+                        mad_agent.update_critic(e_update, temp_update)
+                else:
+                    print("done good, compare: " + str(compare))
+                    for mad_agent in self.list_of_agents:
+                        # currently arbitrary
+                        e_update = (mad_agent.e_th + 1) * 0.01  # increase necessary prob for bad moves
+                        temp_update = (mad_agent.temp + 0.05) * 0.01  # cool down, decrease prob
+                        mad_agent.update_critic(e_update, temp_update)
+
+        for agent in self.list_of_agents:
+            paths.append(agent.long_mem)
+
+        return paths
 
     def grey_wolf_search(self, goal):
         raise NotImplementedError
@@ -254,20 +335,26 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     agents = agents_in
     obstacles = obstacles_in
     goal_position = goal_in
-
-    # Create an instance of the Algorithm class
-    algorithm = Algorithm(agents, obstacles)
+    paths = []
 
     # Find paths for each agent depending on search method
     # Add the way your algorithm is accessed here
     if algorithm_type == "A Star":
+        # Create an instance of the Algorithm class
+        algorithm = Algorithm(agents, obstacles)
+
         paths = algorithm.a_star_search(goal_position)
+        print(paths)
     elif algorithm_type == "APF":
+        algorithm = Algorithm(agents, obstacles)
         paths = algorithm.apf_search(goal_position)
     elif algorithm_type != "Grey Wolf":
         raise NotImplementedError
-    elif algorithm_type != "MAD":
-        raise NotImplementedError
+    elif algorithm_type == "MAD":
+        mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
+        mad_algorithm = Algorithm(mad_agents, obstacles)
+        paths = mad_algorithm.mad_search()
+        # print(paths)
     else:
         print("invalid algorithm")
 
