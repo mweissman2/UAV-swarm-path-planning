@@ -5,10 +5,11 @@ import math
 from maddpg_code import *
 import statistics
 import numpy
+import imageio
 
 # Constants
 WIDTH = 800  # Width of the simulation window
-HEIGHT = 600  # Height of the simulation window
+HEIGHT = 608  # Height of the simulation window
 AGENT_RADIUS = 10  # Radius of the agent
 OBSTACLE_RADIUS = 30  # Radius of the obstacles
 MOVEMENT_SPEED = 3  # Movement speed of the agent
@@ -521,6 +522,8 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     else:
         print("invalid algorithm")
 
+    frames = []
+
     # Game loop
     running = True
     while running:
@@ -558,7 +561,17 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
 
         # Update the display
         pygame.display.flip()
+
+        # Capture the screen as an image
+        frame = pygame.surfarray.array3d(screen)
+        # Flip the frame vertically
+        frame = numpy.flipud(numpy.rot90(frame, k=1))
+        frames.append(frame)
+
         clock.tick(60)
 
     # Quit the simulation
     pygame.quit()
+
+    # Ignore the imageio warning
+    imageio.mimsave('simulation.mp4', frames, fps=60)
