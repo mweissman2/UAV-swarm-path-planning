@@ -15,7 +15,7 @@ agents_1 = [
 agents_random = MultiAgentEnvironment.create_random_agents(80, 140, 100, 500, 1)
 agents_rand_line = MultiAgentEnvironment.create_agent_line(100, int(random.uniform(100, 550)), 5)
 
-list_of_algos = ["A Star","GWO"]
+list_of_algos = ["A Star", "APF", "MAD", "GWO"]
 
 obstacles_1 = [
     SingleAgentEnvironment.Obstacle(300, 200, OBSTACLE_RADIUS),
