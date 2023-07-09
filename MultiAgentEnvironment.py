@@ -373,6 +373,7 @@ class Algorithm:
 
                 # Check if the agent has reached the goal position
                 if math.sqrt((next_pos[0] - goal[0]) ** 2 + (next_pos[1] - goal[1]) ** 2) <= MOVEMENT_SPEED:
+                    temp_path.append(goal)
                     break
 
                 current_pos = next_pos
@@ -498,6 +499,49 @@ class Algorithm:
             temppath.reverse()
         return temppath
 
+def path_length_diagnostics(paths, goal, obstacles):
+    total_path_length = 0
+    incomplete_paths = 0
+    complete_paths = 0
+
+    for path in paths:
+        temp_length = 0
+        path_complete = False
+        prev_point = path[0]
+        for point in path:
+            temp_length += 1
+            if point == goal:
+                path_complete = True
+                break
+            for obstacle in obstacles:
+                dx = point[0] - obstacle.x
+                dy = point[1] - obstacle.y
+                distance = math.sqrt(dx ** 2 + dy ** 2)
+                if distance <= AGENT_RADIUS + obstacle.radius:
+                    path_complete = False
+                    break
+
+            dx = point[0] - prev_point[0]
+            dy = point[1] - prev_point[1]
+            distance = math.sqrt(dx ** 2 + dy ** 2)
+            if distance > 5:
+                path_complete = False
+                break
+            prev_point = point
+
+        if path_complete:
+            total_path_length += temp_length
+            complete_paths += 1
+        else:
+            incomplete_paths += 1
+
+    if complete_paths > 0:
+        average_path_length = float(total_path_length)/complete_paths
+    else:
+        average_path_length = 0
+    completion_percentage = float(complete_paths)/(complete_paths + incomplete_paths)
+
+    return average_path_length, completion_percentage
 
 def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     # Initialize Pygame
@@ -539,6 +583,10 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"The algorithm block took {elapsed_time} seconds to execute.")
+
+    average_length, completion_percentage = path_length_diagnostics(paths, goal_position, obstacles)
+    print(f"The average path length of the swarm was {average_length} points")
+    print(f"The percentage of robots that made it to the goal was {completion_percentage * 100}%")
 
     frames = []
 
