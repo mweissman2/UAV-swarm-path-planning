@@ -6,6 +6,7 @@ from maddpg_code import *
 import statistics
 import numpy
 import imageio
+import time
 
 # Constants
 WIDTH = 800  # Width of the simulation window
@@ -31,6 +32,7 @@ class Agent:
         self.y = y
         self.start = (self.x, self.y)
         self.path = []
+        self.disp_goal_reached = False
 
     def get_id(self):
         print(self.agent_id)
@@ -45,6 +47,9 @@ class Agent:
             self.x = next_pos[0]
             self.y = next_pos[1]
             self.path.pop(0)
+            if len(self.path) == 0:
+                print("agent path completed")
+
 
             # if distance <= MOVEMENT_SPEED:
 
@@ -53,6 +58,7 @@ class Agent:
             #     direction_y = int(dy / distance * MOVEMENT_SPEED)
             #     self.x += direction_x
             #     self.y += direction_y
+
 
     def draw(self, screen):
         pygame.draw.circle(screen, GREEN, (self.x, self.y), AGENT_RADIUS)
@@ -506,6 +512,9 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     goal_position = goal_in
     paths = []
 
+    # time the length of the algorithm for results
+    start_time = time.time()
+
     # Find paths for each agent depending on search method
     # Add the way your algorithm is accessed here
     if algorithm_type == "A Star":
@@ -527,6 +536,10 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     else:
         print("invalid algorithm")
 
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"The algorithm block took {elapsed_time} seconds to execute.")
+
     frames = []
 
     # Game loop
@@ -541,9 +554,15 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         if algorithm_type == "MAD":
             for agent in mad_agents:
                 agent.move()
+                if agent.position == goal_position and not agent.disp_goal_reached:
+                    print("agent reached goal")
+                    agent.disp_goal_reached = True
         else:
             for agent in agents:
                 agent.move()
+                if (agent.x, agent.y) == goal_position and not agent.disp_goal_reached:
+                    print("agent reached goal")
+                    agent.disp_goal_reached = True
 
 
         # Clear the screen

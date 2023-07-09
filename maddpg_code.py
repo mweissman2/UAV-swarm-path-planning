@@ -32,6 +32,7 @@ class MADDPG_agent:
         self.reward_mem = []
         self.disp_path = []
         self.long_mem = []  # long term memory path
+        self.disp_goal_reached = False
 
         # algorithm parameters
         self.temp = temp
