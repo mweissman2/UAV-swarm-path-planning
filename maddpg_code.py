@@ -25,12 +25,12 @@ class MADDPG_agent:
         self.start = initial
         self.goal = goal  # Target position to reach, 1x2 list
         self.path = []  # initialize short term memory
-        self.disp_path = []
         self.path_length = 0
         self.obstacles = obstacles
         self.agent_id = ID
         self.next_reward_neighbor = []
         self.reward_mem = []
+        self.disp_path = []
         self.long_mem = []  # long term memory path
 
         # algorithm parameters
@@ -53,8 +53,8 @@ class MADDPG_agent:
             #     direction_y = int(dy / distance * MOVEMENT_SPEED)
             #     self.position = (self.position[0] + direction_x, self.position[1] + direction_y)
 
-            print("dist: " + str(distance))
-            print("position: " + str(self.position))
+            # print("dist: " + str(distance))
+            # print("position: " + str(self.position))
 
     def draw(self, screen):
         pygame.draw.circle(screen, GREEN, self.position, AGENT_RADIUS)
@@ -169,6 +169,7 @@ class MADDPG_agent:
 
             sa_path.append(self.position)
             self.long_mem.append(self.position)
+            self.disp_path.append(self.position)
 
         self.next_reward_neighbor = self.position
         return sa_path, self.path_length, self.reward(self.position[0], self.position[1])  # return path route and distance to the target, euclid distance

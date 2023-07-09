@@ -381,6 +381,7 @@ class Algorithm:
         q = []
         y = .54  # discount value, also currently
         paths = []
+        disp_paths = []
         new_gradient = []
         past_gradient = []
         for agent in self.list_of_agents:
@@ -418,10 +419,11 @@ class Algorithm:
                         temp_update = (mad_agent.temp + 0.05) * 0.01  # cool down, decrease prob
                         mad_agent.update_critic(e_update, temp_update)
 
-        for agent in self.list_of_agents:
-            paths.append(agent.long_mem)
+        for mad_agent in self.list_of_agents:
+            paths.append(mad_agent.long_mem)
+            disp_paths.append(mad_agent.disp_path)
 
-        return paths
+        return disp_paths
 
     def simplified_gwo_search(self, goal, max_iterations):
         def heuristic(node, goal):
