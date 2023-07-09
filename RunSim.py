@@ -14,6 +14,10 @@ agents_1 = [
 ]
 agents_random = MultiAgentEnvironment.create_random_agents(80, 140, 100, 500, 1)
 agents_rand_line = MultiAgentEnvironment.create_agent_line(100, int(random.uniform(100, 550)), 5)
+agents_center_line_10 = MultiAgentEnvironment.create_agent_line(100, 300, 10)
+agents_center_line_5 = MultiAgentEnvironment.create_agent_line(100, 300, 5)
+agents_center_line_3 = MultiAgentEnvironment.create_agent_line(100, 300, 3)
+diagnostics_agents = [agents_center_line_3, agents_center_line_5, agents_center_line_10]
 
 list_of_algos = ["A Star", "APF", "MAD", "GWO"]
 
@@ -67,8 +71,11 @@ obstacles_3 = [
     SingleAgentEnvironment.Obstacle(300, 100, 40),
     SingleAgentEnvironment.Obstacle(500, 100, 60),
     SingleAgentEnvironment.Obstacle(300, 500, 20),
-    SingleAgentEnvironment.Obstacle(500, 500, 40),
+    # SingleAgentEnvironment.Obstacle(500, 500, 40),
+    # SingleAgentEnvironment.Obstacle(800, 600, 40),
 ]
+
+diagnostics_obstacles = [obstacles_1, obstacles_2, obstacles_3]
 
 obstacles_4 = SingleAgentEnvironment.create_obstacle_objects(200, 600, 50, 550, 10, 50, 15)
 
@@ -77,30 +84,35 @@ obstacles_array = [obstacles_1, obstacles_2, obstacles_3, obstacles_4]
 
 def main():
     algo = ""
-    while algo not in list_of_algos:
+    while algo not in list_of_algos and algo != "Test Algorithms":
         algo = input("\nWhat algorithm would you like to use?\n")
-        if algo not in list_of_algos:
+        if algo not in list_of_algos and algo != "Test Algorithms":
             print(list_of_algos)
             print("Not in list of algorithms, choose from the list above")
 
-    obstacles_to_use = 0
-    while obstacles_to_use > len(obstacles_array) or obstacles_to_use < 1:
-        obstacles_to_use = int(input("\nWhich Obstacle Set would you like to use? (options: 1, 2, 3, 4)\n"))
+    if algo == "Test Algorithms":
+        # Change algorithm being tested here
+        for a in list_of_algos:
+            MultiAgentEnvironment.run_scenario_multi_agent_diagnostics(diagnostics_obstacles, diagnostics_agents, goal_2, a)
 
-    obstacles = obstacles_array[obstacles_to_use - 1]
-
-    num_rand_agents = 0
-    while num_rand_agents > 15 or num_rand_agents < 1:
-        num_rand_agents = int(input("\nHow many random agents would you like to generate?\n"))
-
-    if algo != "GWO":
-        agents = MultiAgentEnvironment.create_agent_line(100, int(random.uniform(100, 600)), num_rand_agents)
     else:
-        agents = MultiAgentEnvironment.create_wolf_population(100, int(random.uniform(100, 600)), num_rand_agents)
+        obstacles_to_use = 0
+        while obstacles_to_use > len(obstacles_array) or obstacles_to_use < 1:
+            obstacles_to_use = int(input("\nWhich Obstacle Set would you like to use? (options: 1, 2, 3, 4)\n"))
 
+        obstacles = obstacles_array[obstacles_to_use - 1]
 
-    MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents, goal_1, algo)
-    # SingleAgentEnvironment.run_scenario_single_agent(obstacles, agent_1, goal_1, "A Star")
+        num_rand_agents = 0
+        while num_rand_agents > 15 or num_rand_agents < 1:
+            num_rand_agents = int(input("\nHow many random agents would you like to generate?\n"))
+
+        if algo != "GWO":
+            agents = MultiAgentEnvironment.create_agent_line(100, int(random.uniform(100, 600)), num_rand_agents)
+        else:
+            agents = MultiAgentEnvironment.create_wolf_population(100, int(random.uniform(100, 600)), num_rand_agents)
+
+        MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents, goal_2, algo)
+        # SingleAgentEnvironment.run_scenario_single_agent(obstacles, agent_1, goal_1, "A Star")
 
 
 if __name__ == "__main__":

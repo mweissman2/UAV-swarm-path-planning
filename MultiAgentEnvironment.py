@@ -2,6 +2,9 @@ import random
 import pygame
 import heapq
 import math
+
+from matplotlib import pyplot as plt
+
 from maddpg_code import *
 import statistics
 import numpy
@@ -366,7 +369,7 @@ class Algorithm:
             temp_path = [agent.start]
             current_pos = agent.start
 
-            while True:
+            for i in range(0, 5000):
                 # Move towards the next position based on the total force
                 next_pos = move_towards(current_pos, goal, self.obstacles)
                 temp_path.append(next_pos)
@@ -395,7 +398,7 @@ class Algorithm:
             new_gradient.append(0)
             past_gradient.append(0)
 
-        for episode in range(0, 2000):
+        for episode in range(0, 3000):
 
             for agent in self.list_of_agents:
                 path, length, reward = agent.action()
@@ -542,6 +545,80 @@ def path_length_diagnostics(paths, goal, obstacles):
     completion_percentage = float(complete_paths)/(complete_paths + incomplete_paths)
 
     return average_path_length, completion_percentage
+
+def run_scenario_multi_agent_diagnostics(lo_obstacles, lo_agents, goal_in, algorithm_type):
+    for agents in lo_agents:
+        environment_complexities = []
+        i = 0
+        elapsed_times = []
+        average_lengths = []
+        completion_percentages = []
+
+        for obstacles in lo_obstacles:
+            i += 1
+            # input variables
+            goal_position = goal_in
+            paths = []
+
+            # time the length of the algorithm for results
+            start_time = time.time()
+
+            # Find paths for each agent depending on search method
+            # Add the way your algorithm is accessed here
+            if algorithm_type == "A Star":
+                # Create an instance of the Algorithm class
+                algorithm = Algorithm(agents, obstacles)
+                paths = algorithm.a_star_search(goal_position)
+                print(paths)
+            elif algorithm_type == "APF":
+                algorithm = Algorithm(agents, obstacles)
+                paths = algorithm.apf_search(goal_position)
+            elif algorithm_type == "GWO":
+                algorithm = Algorithm(agents, obstacles)
+                paths = algorithm.simplified_gwo_search(goal_position, max_iterations=1000)
+            elif algorithm_type == "MAD":
+                mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
+                mad_algorithm = Algorithm(mad_agents, obstacles)
+                paths = mad_algorithm.mad_search()
+            else:
+                print("invalid algorithm")
+
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            average_length, completion_percentage = path_length_diagnostics(paths, goal_position, obstacles)
+
+            # Store the data in the respective lists
+            elapsed_times.append(elapsed_time)
+            average_lengths.append(average_length)
+            completion_percentages.append(completion_percentage)
+
+            # Store the complexity value for the current environment
+            environment_complexities.append("obstacle difficulty: " + str(i))
+            print("datapoint complete")
+
+        agents_string = str(len(agents))
+        # Plot the data for the current agent
+        plt.figure()
+        plt.suptitle("Algorithm: " + algorithm_type + "\nAmount of agents: " + agents_string)
+        plt.subplot(311)
+        plt.plot(environment_complexities, elapsed_times, marker='o')
+        plt.xlabel('Environment Complexity')
+        plt.ylabel('Elapsed Time')
+
+        plt.subplot(312)
+        plt.plot(environment_complexities, average_lengths, marker='o')
+        plt.xlabel('Environment Complexity')
+        plt.ylabel('Average Length')
+
+        plt.subplot(313)
+        plt.plot(environment_complexities, completion_percentages, marker='o')
+        plt.xlabel('Environment Complexity')
+        plt.ylabel('Completion Percentage')
+
+        plt.tight_layout()
+        plt.savefig("Algorithm_" + algorithm_type + "agents_" + agents_string + ".png")  # Save the plot as an image file
+        plt.close()  # Close the figure to release resources
+
 
 def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     # Initialize Pygame
