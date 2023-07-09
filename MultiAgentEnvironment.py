@@ -41,15 +41,18 @@ class Agent:
             dx = next_pos[0] - self.x
             dy = next_pos[1] - self.y
             distance = (dx ** 2 + dy ** 2) ** 0.5
-            if distance <= MOVEMENT_SPEED:
-                self.x = next_pos[0]
-                self.y = next_pos[1]
-                self.path.pop(0)
-            else:
-                direction_x = int(dx / distance * MOVEMENT_SPEED)
-                direction_y = int(dy / distance * MOVEMENT_SPEED)
-                self.x += direction_x
-                self.y += direction_y
+
+            self.x = next_pos[0]
+            self.y = next_pos[1]
+            self.path.pop(0)
+
+            # if distance <= MOVEMENT_SPEED:
+
+            # else:
+            #     direction_x = int(dx / distance * MOVEMENT_SPEED)
+            #     direction_y = int(dy / distance * MOVEMENT_SPEED)
+            #     self.x += direction_x
+            #     self.y += direction_y
 
     def draw(self, screen):
         pygame.draw.circle(screen, GREEN, (self.x, self.y), AGENT_RADIUS)
@@ -401,14 +404,14 @@ class Algorithm:
 
                 compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
                 if compare <= 0:
-                    print("updating params, compare: " + str(compare))
+                    # print("updating params, compare: " + str(compare))
                     for mad_agent in self.list_of_agents:
                         # currently arbitrary
                         e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
                         temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
                         mad_agent.update_critic(e_update, temp_update)
                 else:
-                    print("done good, compare: " + str(compare))
+                    # print("done good, compare: " + str(compare))
                     for mad_agent in self.list_of_agents:
                         # currently arbitrary
                         e_update = (mad_agent.e_th + 1) * 0.01  # increase necessary prob for bad moves
@@ -533,8 +536,13 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
                 running = False
 
         # Update the agent's position
-        for agent in agents:
-            agent.move()
+        if algorithm_type == "MAD":
+            for agent in mad_agents:
+                agent.move()
+        else:
+            for agent in agents:
+                agent.move()
+
 
         # Clear the screen
         screen.fill(WHITE)
@@ -546,10 +554,16 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
 
         # Draw the agent
         # Draw the start and goal positions
-        for agent in agents:
-            agent.draw(screen)
-            pygame.draw.circle(screen, BLUE, agent.start, 5)
-            pygame.draw.circle(screen, BLUE, goal_position, 5)
+        if algorithm_type == "MAD":
+            for agent in mad_agents:
+                agent.draw(screen)
+                pygame.draw.circle(screen, BLUE, agent.start, 5)
+                pygame.draw.circle(screen, BLUE, goal_position, 5)
+        else:
+            for agent in agents:
+                agent.draw(screen)
+                pygame.draw.circle(screen, BLUE, agent.start, 5)
+                pygame.draw.circle(screen, BLUE, goal_position, 5)
 
         # Draw the obstacles
         for obstacle in obstacles:
