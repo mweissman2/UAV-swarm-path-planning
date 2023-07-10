@@ -111,7 +111,7 @@ def main():
         else:
             agents = MultiAgentEnvironment.create_wolf_population(100, int(random.uniform(100, 600)), num_rand_agents)
 
-        MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents, goal_2, algo)
+        MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents_center_line_10, goal_2, algo)
         # SingleAgentEnvironment.run_scenario_single_agent(obstacles, agent_1, goal_1, "A Star")
 
 
