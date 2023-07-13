@@ -5,10 +5,11 @@ import math
 from maddpg_code import *
 import statistics
 import numpy
+import imageio
 
 # Constants
 WIDTH = 800  # Width of the simulation window
-HEIGHT = 600  # Height of the simulation window
+HEIGHT = 608  # Height of the simulation window
 AGENT_RADIUS = 10  # Radius of the agent
 OBSTACLE_RADIUS = 30  # Radius of the obstacles
 MOVEMENT_SPEED = 3  # Movement speed of the agent
@@ -40,15 +41,18 @@ class Agent:
             dx = next_pos[0] - self.x
             dy = next_pos[1] - self.y
             distance = (dx ** 2 + dy ** 2) ** 0.5
-            if distance <= MOVEMENT_SPEED:
-                self.x = next_pos[0]
-                self.y = next_pos[1]
-                self.path.pop(0)
-            else:
-                direction_x = int(dx / distance * MOVEMENT_SPEED)
-                direction_y = int(dy / distance * MOVEMENT_SPEED)
-                self.x += direction_x
-                self.y += direction_y
+
+            self.x = next_pos[0]
+            self.y = next_pos[1]
+            self.path.pop(0)
+
+            # if distance <= MOVEMENT_SPEED:
+
+            # else:
+            #     direction_x = int(dx / distance * MOVEMENT_SPEED)
+            #     direction_y = int(dy / distance * MOVEMENT_SPEED)
+            #     self.x += direction_x
+            #     self.y += direction_y
 
     def draw(self, screen):
         pygame.draw.circle(screen, GREEN, (self.x, self.y), AGENT_RADIUS)
@@ -154,6 +158,15 @@ class Obstacle:
 
     def draw(self, screen):
         pygame.draw.circle(screen, BLACK, (self.x, self.y), self.radius)
+
+class Boundary:
+    def __init__(self,x_i,y_i,x_f,y_f):
+        self.start_x = x_i
+        self.start_y = y_i
+        self.final_x = x_f
+        self.final_y = y_f
+
+
 
 
 # ******* new addition below   *******************
@@ -346,6 +359,12 @@ class Algorithm:
                     new_pos_x = obstacle.x + (AGENT_RADIUS + obstacle.radius) * math.cos(angle)
                     new_pos_y = obstacle.y + (AGENT_RADIUS + obstacle.radius) * math.sin(angle)
                     break
+                # Checking boundary of simulation
+                if new_pos_x < 0 or new_pos_x >= WIDTH or new_pos_y < 0 or new_pos_y >= HEIGHT:
+                    angle = math.atan2(dy, dx)
+                    new_pos_x = obstacle.x + (AGENT_RADIUS + obstacle.radius) * math.cos(angle)
+                    new_pos_y = obstacle.y + (AGENT_RADIUS + obstacle.radius) * math.sin(angle)
+                    break
 
             return (new_pos_x, new_pos_y)
 
@@ -377,6 +396,7 @@ class Algorithm:
         q = []
         y = .54  # discount value, also currently
         paths = []
+        disp_paths = []
         new_gradient = []
         past_gradient = []
         for agent in self.list_of_agents:
@@ -400,24 +420,25 @@ class Algorithm:
 
                 compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
                 if compare <= 0:
-                    print("updating params, compare: " + str(compare))
+                    # print("updating params, compare: " + str(compare))
                     for mad_agent in self.list_of_agents:
                         # currently arbitrary
                         e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
                         temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
                         mad_agent.update_critic(e_update, temp_update)
                 else:
-                    print("done good, compare: " + str(compare))
+                    # print("done good, compare: " + str(compare))
                     for mad_agent in self.list_of_agents:
                         # currently arbitrary
                         e_update = (mad_agent.e_th + 1) * 0.01  # increase necessary prob for bad moves
                         temp_update = (mad_agent.temp + 0.05) * 0.01  # cool down, decrease prob
                         mad_agent.update_critic(e_update, temp_update)
 
-        for agent in self.list_of_agents:
-            paths.append(agent.long_mem)
+        for mad_agent in self.list_of_agents:
+            paths.append(mad_agent.long_mem)
+            disp_paths.append(mad_agent.disp_path)
 
-        return paths
+        return disp_paths
 
     def simplified_gwo_search(self, goal, max_iterations):
         def heuristic(node, goal):
@@ -521,6 +542,8 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     else:
         print("invalid algorithm")
 
+    frames = []
+
     # Game loop
     running = True
     while running:
@@ -530,8 +553,13 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
                 running = False
 
         # Update the agent's position
-        for agent in agents:
-            agent.move()
+        if algorithm_type == "MAD":
+            for agent in mad_agents:
+                agent.move()
+        else:
+            for agent in agents:
+                agent.move()
+
 
         # Clear the screen
         screen.fill(WHITE)
@@ -543,10 +571,16 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
 
         # Draw the agent
         # Draw the start and goal positions
-        for agent in agents:
-            agent.draw(screen)
-            pygame.draw.circle(screen, BLUE, agent.start, 5)
-            pygame.draw.circle(screen, BLUE, goal_position, 5)
+        if algorithm_type == "MAD":
+            for agent in mad_agents:
+                agent.draw(screen)
+                pygame.draw.circle(screen, BLUE, agent.start, 5)
+                pygame.draw.circle(screen, BLUE, goal_position, 5)
+        else:
+            for agent in agents:
+                agent.draw(screen)
+                pygame.draw.circle(screen, BLUE, agent.start, 5)
+                pygame.draw.circle(screen, BLUE, goal_position, 5)
 
         # Draw the obstacles
         for obstacle in obstacles:
@@ -558,7 +592,17 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
 
         # Update the display
         pygame.display.flip()
+
+        # Capture the screen as an image
+        frame = pygame.surfarray.array3d(screen)
+        # Flip the frame vertically
+        frame = numpy.flipud(numpy.rot90(frame, k=1))
+        frames.append(frame)
+
         clock.tick(60)
 
     # Quit the simulation
     pygame.quit()
+
+    # Ignore the imageio warning
+    imageio.mimsave('simulation.mp4', frames, fps=60)
