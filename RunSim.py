@@ -63,7 +63,7 @@ obstacles_3 = [
     # SingleAgentEnvironment.Obstacle(700, 300, 10),
     SingleAgentEnvironment.Obstacle(400, 50, 70),
     SingleAgentEnvironment.Obstacle(400, 550, 80),
-    SingleAgentEnvironment.Obstacle(250, 350, 60),
+    # SingleAgentEnvironment.Obstacle(250, 350, 60),
     SingleAgentEnvironment.Obstacle(300, 100, 40),
     SingleAgentEnvironment.Obstacle(500, 100, 60),
     SingleAgentEnvironment.Obstacle(300, 500, 20),

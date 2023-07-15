@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 import math
+import pygame
 from MultiAgentEnvironment import *
 
 # Constants
@@ -17,6 +18,7 @@ WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+
 
 # class for making individual agents
 class MADDPG_agent:
@@ -37,6 +39,7 @@ class MADDPG_agent:
         # algorithm parameters
         self.temp = temp
         self.e_th = e_th
+        self.e_counter = 0
 
     def move(self):
         if self.long_mem:
@@ -89,17 +92,16 @@ class MADDPG_agent:
         self.temp = temp_update
         self.e_th = e_update
 
-
     def get_pos(self):
         return self.position
 
     def goal_test(self):
-        if self.position ==self.goal:
+        if self.position == self.goal:
             return True
         else:
             return False
 
-    def feed_pos(self,agent_pos_in):
+    def feed_pos(self, agent_pos_in):
         self.swarm_pos = agent_pos_in
 
     def reward(self, x, y):
@@ -108,7 +110,9 @@ class MADDPG_agent:
         x2, y2 = self.goal[0], self.goal[1]
 
         max_reward = (WIDTH ** 2 + HEIGHT ** 2) ** 0.5
-        reward = 0
+        obstacle_reward = 0
+        goal_reward = 0
+        total_reward = 0
         for obstacle in self.obstacles:
             p0 = AGENT_RADIUS + obstacle.radius  # Influence radius of F_rep
             p1 = p0 + 3
@@ -116,33 +120,84 @@ class MADDPG_agent:
             p3 = p0 + 12
             distance = self.euclid_distance((x, y), (obstacle.x, obstacle.y))
 
-            # Setting reward to 0 for collision case (perhaps change to a negative value later
+            # set negative reward for being close to the obstacle
+            # if p0 < distance < p1:
+            #     obstacle_reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5)*1.6
+            #
+            # elif p1 < distance < p2:
+            #     obstacle_reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5)*1.3
+            #
+            # elif p2 < distance < p3:
+            #     obstacle_reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5)*1.2
+
+            multiplier = 1.75
+            threshold = 50
+            goal_r0 = AGENT_RADIUS * 5  # assumes agent radius is same as goal collision radius
+            goal_r = [goal_r0]
+            # goal_r1 = goal_r0+multiplier
+            # goal_r2 = goal_r1*multiplier
+            # goal_r3 = goal_r2*multiplier
+            # goal_r4 = goal_r3*multiplier
+            # goal_r5 = goal_r4*multiplier
+
+            # Creating distance radii from goal, each element is an increasing distance away from goal
+            for i in range(1, 16):              # distance increase as index increases
+                goal_r.append(goal_r[i - 1] + threshold)
+
+            goal_distance = self.euclid_distance((x, y), self.goal)
+
+            # compare distances and assign appropriate rewards
+            for i in range(0,16):       # index 0 has smallest distance, and index 15 has greatest distance
+                if goal_r[i] <= goal_distance < goal_r[i + 1] and i != 15:
+                    goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * (17- i)
+                    break
+                elif i == 15:
+                    goal_reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5)
+
+
+
+            # if goal_distance <= goal_r[15]:
+            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5)
+            # elif goal_r[14] <= goal_distance < goal_r[15]:
+            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * 1.5
+            # elif goal_r[13] <= goal_distance < goal_r[14]:
+            #
+            #
+            # elif goal_r4 <= goal_distance < goal_r5:
+            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * 2
+            # elif goal_r3 <= goal_distance < goal_r4:
+            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * 4
+            # elif goal_r2 <= goal_distance < goal_r3:
+            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * 4
+            # elif goal_r1 <= goal_distance < goal_r2:
+            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * 4
+            # elif goal_distance < goal_r1:
+            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * 4
+            # else:
+            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * 0.5
+
+            # this directs agents on straight line path
+            # else:
+            #     reward = max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5
+
+            reward = obstacle_reward + goal_reward
+            # print(reward)
+            # Setting reward to 0 for collision case
             if distance <= p0:
                 reward = 0
-            # set negative reward for being close to the obstacle
-            elif p0 < distance < p1:
-                reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5)/2
-
-            elif p1 < distance < p2:
-                reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) / 3
-
-            elif p2 < distance < p3:
-                reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) / 4
-
-            else:
-                reward = max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5
 
         # test if the drone is stuck in a local maxima
-        if self.position in self.long_mem[-6:]:
-             reward = 0
+        # if self.position in self.long_mem[-3:]:
+        #      reward = -reward
 
         # test how close the agents are to each other
-        R0 = AGENT_RADIUS*2
-        if len(self.swarm_pos) > 1:
-            for agents in self.swarm_pos:
-                col_distance = self.euclid_distance((x, y), (agents[0], agents[1]))
-                if col_distance <= R0:
-                    reward = 0
+        # R0 = AGENT_RADIUS*2
+        # if len(self.swarm_pos) > 1:
+        #     for agents in self.swarm_pos:
+        #         col_distance = self.euclid_distance((x, y), (agents[0], agents[1]))
+        #         if col_distance <= R0:
+        #             reward = 0
+
         return reward
 
     # actions are Defined via simulated annealing algorithm, which determines which action to take locally
@@ -154,7 +209,7 @@ class MADDPG_agent:
     def action(self):  # these params will be updated by critic
         # set city and count parameters
         sa_path = [self.position]  # overwrite the old sa_path
-
+        self.e_counter += 1
         for i in range(0, 5):  # every episode has 5 transitions
             # later, the action choice will be based on something else
             neighbor = random.choice(
@@ -192,17 +247,23 @@ class MADDPG_agent:
                 # print("eth: " + str(self.e_th))
 
             # else:
-                # Debugging/Tuning print statements
-                # print("stayed")
-                # print("prob: " + str(prob))
-                # print("eth: " + str(self.e_th))
+            # Debugging/Tuning print statements
+            # print("stayed")
+            # print("prob: " + str(prob))
+            # print("eth: " + str(self.e_th))
 
             sa_path.append(self.position)
             self.long_mem.append(self.position)
             self.disp_path.append(self.position)
 
         self.next_reward_neighbor = self.position
-        return sa_path, self.path_length, self.reward(self.position[0], self.position[1])  # return path route and distance to the target, euclid distance
+        if self.position == self.goal:
+            msg_out = f'Agent {self.agent_id} has reached goal at episode {self.e_counter}'
+            print(msg_out)
+
+
+        return sa_path, self.path_length, self.reward(self.position[0], self.position[
+            1])  # return path route and distance to the target, euclid distance
 
     def next_reward(self):
         # maybe add obstacle repulsion later
@@ -225,4 +286,3 @@ class MADDPG_agent:
         reward_4 = self.reward(x4, y4)
 
         return max(reward_1, reward_2, reward_3, reward_4)
-

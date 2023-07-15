@@ -17,6 +17,9 @@ MOVEMENT_SPEED = 3  # Movement speed of the agent
 # For APF
 SEARCH_RADIUS = 50
 
+# For MADDPG
+
+
 # Colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -407,57 +410,57 @@ class Algorithm:
         compare_list = []
         episode = 0
         agents_pos = []
-
+        iteration = 7000
         for agent in self.list_of_agents:
             new_gradient.append(0)
             past_gradient.append(0)
 
-        for episode in range(0, 3000):
-        #while not agent.goal_test():
+        for episode in range(0, iteration):
+            # while not agent.goal_test():
 
-                for agent in self.list_of_agents:
-                    #agent.feed_pos(agents_pos)
-                    path, length, reward = agent.action()
+            for agent in self.list_of_agents:
+                # agent.feed_pos(agents_pos)
+                path, length, reward = agent.action()
 
-                    # update rewards and gradients
-                    agent.reward_mem.append(reward + y * agent.next_reward())  # this is q-value stored in agent
-                    if episode > 1:
-                        past_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 2] - agent.reward_mem[
-                            episode - 1]) / 2
-                        new_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 1] - agent.reward_mem[episode]) / 2
-                    #agents_pos.append(agent.get_pos())
-
+                # update rewards and gradients
+                agent.reward_mem.append(reward + y * agent.next_reward())  # this is q-value stored in agent
                 if episode > 1:
+                    past_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 2] - agent.reward_mem[
+                        episode - 1]) / 2
+                    new_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 1] - agent.reward_mem[episode]) / 2
+                # agents_pos.append(agent.get_pos())
 
-                    compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
-                    compare_list.append(compare)
-                    # maybe multiply q-gradient by the parameters?
-                    if compare <= 0:
-                        for mad_agent in self.list_of_agents:
-                            e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
-                            temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
-                            mad_agent.update_critic(e_update, temp_update)
+            if episode > 1:
 
-                    # if compare <= 0:
-                    #     for mad_agent in self.list_of_agents:
-                    #         e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
-                    #         temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
-                    #         mad_agent.update_critic(e_update, temp_update)
-                    else:
-                        for mad_agent in self.list_of_agents:
-                            # currently arbitrary
-                            e_update = (mad_agent.e_th + 1) * 0.01  # increase necessary prob for bad moves
-                            temp_update = (mad_agent.temp + 0.05) * 0.01  # cool down, decrease prob
-                            mad_agent.update_critic(e_update, temp_update)
+                compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
+                compare_list.append(compare)
+                # maybe multiply q-gradient by the parameters?
+                if compare <= 0:
+                    for mad_agent in self.list_of_agents:
+                        e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
+                        temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
+                        mad_agent.update_critic(e_update, temp_update)
 
-                # episode += 1 # use only when implementing while statement
+                # if compare <= 0:
+                #     for mad_agent in self.list_of_agents:
+                #         e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
+                #         temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
+                #         mad_agent.update_critic(e_update, temp_update)
+                else:
+                    for mad_agent in self.list_of_agents:
+                        # currently arbitrary
+                        e_update = (mad_agent.e_th + 1) * 0.01  # increase necessary prob for bad moves
+                        temp_update = (mad_agent.temp + 0.05) * 0.01  # cool down, decrease prob
+                        mad_agent.update_critic(e_update, temp_update)
+
+            # episode += 1 # use only when implementing while statement
 
         for mad_agent in self.list_of_agents:
             paths.append(mad_agent.long_mem)
             disp_paths.append(mad_agent.disp_path)
 
         print(compare_list)
-        msg = f'Sim completed at episode {episode}'     # only for while statement
+        msg = f'Sim completed at episode {episode}'  # only for while statement
         print(msg)
         return disp_paths
 
@@ -592,10 +595,35 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         # Draw the agent
         # Draw the start and goal positions
         if algorithm_type == "MAD":
+            multiplier = 1.75
+            threshold = 50
+            goal_r0 = AGENT_RADIUS * 4  # assumes agent radius is same as goal collision radius
+
+            # goal_r1 = goal_r0 * multiplier  # 80
+            # goal_r2 = goal_r1 * multiplier  # 160
+            # goal_r3 = goal_r2 * multiplier  # 320
+            # goal_r4 = goal_r3 * multiplier  # 640
+            # goal_r5 = goal_r4 * multiplier
+            #
+
+            goal_r1 = goal_r0+threshold
+            goal_r2 = goal_r1+threshold
+            goal_r3 = goal_r2+threshold
+            goal_r4 = goal_r3+threshold
+            goal_r5 = goal_r4+threshold
+
+            pygame.draw.circle(screen, (165,42,42), goal_position, goal_r5)
+            pygame.draw.circle(screen, (255, 255, 0), goal_position, goal_r4)
+            pygame.draw.circle(screen, (230,230,250), goal_position, goal_r3)
+            pygame.draw.circle(screen, (255, 192, 203), goal_position, goal_r2)
+            pygame.draw.circle(screen, GREEN, goal_position, goal_r1)
+            pygame.draw.circle(screen, RED, goal_position, goal_r0)
+
             for agent in mad_agents:
                 agent.draw(screen)
                 pygame.draw.circle(screen, BLUE, agent.start, 5)
                 pygame.draw.circle(screen, BLUE, goal_position, 5)
+
         else:
             for agent in agents:
                 agent.draw(screen)
