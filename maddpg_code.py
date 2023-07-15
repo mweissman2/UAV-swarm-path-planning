@@ -32,6 +32,7 @@ class MADDPG_agent:
         self.reward_mem = []
         self.disp_path = []
         self.long_mem = []  # long term memory path
+        self.swarm_pos = []  # memory for storing swarm agent locations
 
         # algorithm parameters
         self.temp = temp
@@ -89,8 +90,17 @@ class MADDPG_agent:
         self.e_th = e_update
 
 
-    def get_param(self):
-        return self.e_th, self.temp
+    def get_pos(self):
+        return self.position
+
+    def goal_test(self):
+        if self.position ==self.goal:
+            return True
+        else:
+            return False
+
+    def feed_pos(self,agent_pos_in):
+        self.swarm_pos = agent_pos_in
 
     def reward(self, x, y):
         # used to define the reward for the agents, defined as the euclidean distance- cost
@@ -102,6 +112,8 @@ class MADDPG_agent:
         for obstacle in self.obstacles:
             p0 = AGENT_RADIUS + obstacle.radius  # Influence radius of F_rep
             p1 = p0 + 3
+            p2 = p0 + 6
+            p3 = p0 + 12
             distance = self.euclid_distance((x, y), (obstacle.x, obstacle.y))
 
             # Setting reward to 0 for collision case (perhaps change to a negative value later
@@ -111,12 +123,26 @@ class MADDPG_agent:
             elif p0 < distance < p1:
                 reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5)/2
 
+            elif p1 < distance < p2:
+                reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) / 3
+
+            elif p2 < distance < p3:
+                reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) / 4
+
             else:
                 reward = max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5
 
-        # need to add some reward to allow the agents to freely backtrack if stuck
-        # this could mean adding another formula to incentivize constant movement
+        # test if the drone is stuck in a local maxima
+        if self.position in self.long_mem[-6:]:
+             reward = 0
 
+        # test how close the agents are to each other
+        R0 = AGENT_RADIUS*2
+        if len(self.swarm_pos) > 1:
+            for agents in self.swarm_pos:
+                col_distance = self.euclid_distance((x, y), (agents[0], agents[1]))
+                if col_distance <= R0:
+                    reward = 0
         return reward
 
     # actions are Defined via simulated annealing algorithm, which determines which action to take locally
@@ -129,7 +155,7 @@ class MADDPG_agent:
         # set city and count parameters
         sa_path = [self.position]  # overwrite the old sa_path
 
-        for i in range(0, 4):  # every episode has 5 transitions
+        for i in range(0, 5):  # every episode has 5 transitions
             # later, the action choice will be based on something else
             neighbor = random.choice(
                 self.get_neighbors(self.position))  # choose a random neighbor, from the surrounding grid

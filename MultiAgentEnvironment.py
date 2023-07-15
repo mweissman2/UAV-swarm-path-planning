@@ -24,6 +24,7 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 
+
 class Agent:
     def __init__(self, agent_id, x, y):
         self.agent_id = agent_id
@@ -56,6 +57,7 @@ class Agent:
 
     def draw(self, screen):
         pygame.draw.circle(screen, GREEN, (self.x, self.y), AGENT_RADIUS)
+
 
 class Wolf(Agent):
     def __init__(self, agent_id, x, y):
@@ -121,10 +123,10 @@ class Wolf(Agent):
 
                 new_x = self.x + dx * MOVEMENT_SPEED
                 new_y = self.y + dy * MOVEMENT_SPEED
-                #direction_x = int(dx_alpha / distance_alpha * strength * MOVEMENT_SPEED)
-                #direction_y = int(dy_alpha / distance_alpha * strength * MOVEMENT_SPEED)
-                #new_x = self.x + direction_x
-                #new_y = self.y + direction_y
+                # direction_x = int(dx_alpha / distance_alpha * strength * MOVEMENT_SPEED)
+                # direction_y = int(dy_alpha / distance_alpha * strength * MOVEMENT_SPEED)
+                # new_x = self.x + direction_x
+                # new_y = self.y + direction_y
                 print("hello")
             else:
                 dx = goal[0] - self.x
@@ -139,13 +141,13 @@ class Wolf(Agent):
                 new_y = self.y + dy * MOVEMENT_SPEED
 
         # checks and limits new position within search space
-        #if self.is_visible(new_x, new_y):
+        # if self.is_visible(new_x, new_y):
         self.x = new_x
         self.y = new_y
         self.path.append((self.x, self.y))
         self.temppath.append((self.x, self.y,))
 
-        #else:
+        # else:
         #    self.x = max(search_space[0], min(new_x, search_space[1]))
         #    self.y = max(search_space[2], min(new_y, search_space[3]))
 
@@ -159,33 +161,32 @@ class Obstacle:
     def draw(self, screen):
         pygame.draw.circle(screen, BLACK, (self.x, self.y), self.radius)
 
+
 class Boundary:
-    def __init__(self,x_i,y_i,x_f,y_f):
+    def __init__(self, x_i, y_i, x_f, y_f):
         self.start_x = x_i
         self.start_y = y_i
         self.final_x = x_f
         self.final_y = y_f
 
 
-
-
 # ******* new addition below   *******************
 
-def create_mad_agents(min_x, max_x, min_y, max_y, num_agents, goal, obstacles):
-    # list to contain all agents
-    agent_objects = []
-    #
-
-    for agent_id in range(1, num_agents + 1):
-        x = int(random.uniform(min_x, max_x))
-        y = int(random.uniform(min_y, max_y))
-        e_th = .56 * random.uniform(2, max_y)
-        cool = 0.05 * random.uniform(min_y, max_y)
-        temp = 150
-        count = 50
-        mad_agent = MADDPG_agent((x, y), goal, count, temp, cool, e_th, obstacles, agent_id)
-        agent_objects.append(mad_agent)
-    return agent_objects
+# def create_mad_agents(min_x, max_x, min_y, max_y, num_agents, goal, obstacles):
+#     # list to contain all agents
+#     agent_objects = []
+#     #
+#
+#     for agent_id in range(1, num_agents + 1):
+#         x = int(random.uniform(min_x, max_x))
+#         y = int(random.uniform(min_y, max_y))
+#         e_th = .56 * random.uniform(2, max_y)
+#         cool = 0.05 * random.uniform(min_y, max_y)
+#         temp = 1500
+#         count = 50
+#         mad_agent = MADDPG_agent((x, y), goal, count, temp, cool, e_th, obstacles, agent_id)
+#         agent_objects.append(mad_agent)
+#     return agent_objects
 
 
 def create_mad_agents_from_agents(agents_in, goal, obstacles):
@@ -201,6 +202,7 @@ def create_mad_agents_from_agents(agents_in, goal, obstacles):
         agent_objects.append(mad_agent)
     return agent_objects
 
+
 # ************************************************************
 
 # Generate random agents
@@ -213,6 +215,7 @@ def create_random_agents(min_x, max_x, min_y, max_y, num_agents):
         agent_objects.append(agent)
     return agent_objects
 
+
 def create_agent_line(right_x, right_y, num_agents):
     agent_objects = []
     for agent_id in range(1, num_agents + 1):
@@ -221,12 +224,14 @@ def create_agent_line(right_x, right_y, num_agents):
         agent_objects.append(agent)
     return agent_objects
 
+
 def create_wolf_population(right_x, right_y, num_wolves):
     wolf_objects = []
     for agent_id in range(1, num_wolves + 1):
         wolf = Wolf(agent_id, right_x, right_y - 20 * agent_id)
         wolf_objects.append(wolf)
     return wolf_objects
+
 
 class Algorithm:
     def __init__(self, list_of_agents, obstacles):
@@ -399,45 +404,61 @@ class Algorithm:
         disp_paths = []
         new_gradient = []
         past_gradient = []
+        compare_list = []
+        episode = 0
+        agents_pos = []
+
         for agent in self.list_of_agents:
             new_gradient.append(0)
             past_gradient.append(0)
 
-        for episode in range(0, 2000):
+        for episode in range(0, 3000):
+        #while not agent.goal_test():
 
-            for agent in self.list_of_agents:
-                path, length, reward = agent.action()
+                for agent in self.list_of_agents:
+                    #agent.feed_pos(agents_pos)
+                    path, length, reward = agent.action()
 
-                # update rewards and gradients
-                agent.reward_mem.append(reward + y * agent.next_reward())  # this is q-value stored in agent
+                    # update rewards and gradients
+                    agent.reward_mem.append(reward + y * agent.next_reward())  # this is q-value stored in agent
+                    if episode > 1:
+                        past_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 2] - agent.reward_mem[
+                            episode - 1]) / 2
+                        new_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 1] - agent.reward_mem[episode]) / 2
+                    #agents_pos.append(agent.get_pos())
+
                 if episode > 1:
-                    past_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 2] - agent.reward_mem[episode - 1]) / 2
-                    new_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 1] - agent.reward_mem[episode]) / 2
 
-                # update total paths var
+                    compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
+                    compare_list.append(compare)
+                    # maybe multiply q-gradient by the parameters?
+                    if compare <= 0:
+                        for mad_agent in self.list_of_agents:
+                            e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
+                            temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
+                            mad_agent.update_critic(e_update, temp_update)
 
-            if episode > 1:
+                    # if compare <= 0:
+                    #     for mad_agent in self.list_of_agents:
+                    #         e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
+                    #         temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
+                    #         mad_agent.update_critic(e_update, temp_update)
+                    else:
+                        for mad_agent in self.list_of_agents:
+                            # currently arbitrary
+                            e_update = (mad_agent.e_th + 1) * 0.01  # increase necessary prob for bad moves
+                            temp_update = (mad_agent.temp + 0.05) * 0.01  # cool down, decrease prob
+                            mad_agent.update_critic(e_update, temp_update)
 
-                compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
-                if compare <= 0:
-                    # print("updating params, compare: " + str(compare))
-                    for mad_agent in self.list_of_agents:
-                        # currently arbitrary
-                        e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
-                        temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
-                        mad_agent.update_critic(e_update, temp_update)
-                else:
-                    # print("done good, compare: " + str(compare))
-                    for mad_agent in self.list_of_agents:
-                        # currently arbitrary
-                        e_update = (mad_agent.e_th + 1) * 0.01  # increase necessary prob for bad moves
-                        temp_update = (mad_agent.temp + 0.05) * 0.01  # cool down, decrease prob
-                        mad_agent.update_critic(e_update, temp_update)
+                # episode += 1 # use only when implementing while statement
 
         for mad_agent in self.list_of_agents:
             paths.append(mad_agent.long_mem)
             disp_paths.append(mad_agent.disp_path)
 
+        print(compare_list)
+        msg = f'Sim completed at episode {episode}'     # only for while statement
+        print(msg)
         return disp_paths
 
     def simplified_gwo_search(self, goal, max_iterations):
@@ -479,7 +500,7 @@ class Algorithm:
         paths = []
         temppath = []
 
-    # MAIN LOOP OF GWO ALGORITHM
+        # MAIN LOOP OF GWO ALGORITHM
         wolfFitnessDict = {}
 
         # use first wolf as preliminary alpha
@@ -488,7 +509,7 @@ class Algorithm:
             wolf.temppath.append(wolf.start)
             wolf.update_position((self.list_of_agents[0].x, self.list_of_agents[0].y), goal)
             wolf.update_fitness(goal)
-            wolfFitnessDict[wolf.agent_id] = wolf.fitness   # save new fitness values
+            wolfFitnessDict[wolf.agent_id] = wolf.fitness  # save new fitness values
         alpha_position = update_hierarchy(wolfFitnessDict)
 
         # cycle thru episodes to find iterative alphas
@@ -496,7 +517,7 @@ class Algorithm:
             for wolf in self.list_of_agents:
                 wolf.update_position(alpha_position, goal)
                 wolf.update_fitness(goal)
-                wolfFitnessDict[wolf.agent_id] = wolf.fitness   # save new fitness values
+                wolfFitnessDict[wolf.agent_id] = wolf.fitness  # save new fitness values
             alpha_position = update_hierarchy(wolfFitnessDict)
 
         # reconstruct path
@@ -559,7 +580,6 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         else:
             for agent in agents:
                 agent.move()
-
 
         # Clear the screen
         screen.fill(WHITE)
