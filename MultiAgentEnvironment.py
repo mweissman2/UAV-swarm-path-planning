@@ -312,15 +312,21 @@ class Algorithm:
 
         def inter_agent_force(agent, agent_pos):
             if (agent.x, agent.y) != agent_pos:
-                k_rep = 50.0  # Repulsive force gain
-                buffer = 0
+                k_rep = 60000000  # Repulsive force gain
+                buffer = 15
                 p0 = AGENT_RADIUS*2 + buffer  # Influence radius of F_rep
                 inter_dist_x = agent_pos[0] - agent.x
                 inter_dist_y = agent_pos[1] - agent.y
                 dist = (inter_dist_x ** 2 + inter_dist_y ** 2) ** 0.5  # Dist btwn UAV and obstacle
                 if dist <= p0:
-                    x_rep = k_rep * ((1 / inter_dist_x - (1 / p0)) * (1 / inter_dist_x) ** 2)
-                    y_rep = k_rep * ((1 / inter_dist_y - (1 / p0)) * (1 / inter_dist_y) ** 2)
+                    if inter_dist_x > 0:
+                        x_rep = k_rep * ((1 / inter_dist_x - (1 / p0)) * (1 / inter_dist_x) ** 2)
+                    else:
+                        x_rep = 0
+                    if inter_dist_y > 0:
+                        y_rep = k_rep * ((1 / inter_dist_y - (1 / p0)) * (1 / inter_dist_y) ** 2)
+                    else:
+                        y_rep = 0
                     return x_rep, y_rep
                 else:
                     return 0.0, 0.0
@@ -338,10 +344,10 @@ class Algorithm:
                 force_y += rep_force_y
             print("tot_fx:", force_x, "tot_fy:", force_y)
 
-            # for agent in self.list_of_agents:
-            #     rep_force_x, rep_force_y = inter_agent_force(agent, agent_pos)
-            #     force_x += rep_force_x
-            #     force_y += rep_force_y
+            for agent in self.list_of_agents:
+                rep_force_x, rep_force_y = inter_agent_force(agent, agent_pos)
+                force_x += rep_force_x
+                force_y += rep_force_y
 
             return (force_x, force_y)
 
@@ -374,7 +380,7 @@ class Algorithm:
         paths = []
 
 
-        for episode in range(0, 2000):
+        for episode in range(0, 1000):
             all_goal = True
 
             for agent in self.list_of_agents:
