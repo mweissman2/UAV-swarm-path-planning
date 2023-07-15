@@ -104,10 +104,12 @@ class MADDPG_agent:
     def feed_pos(self, agent_pos_in):
         self.swarm_pos = agent_pos_in
 
-    def reward(self, x, y):
+    def reward(self, x, y, new_goal=[0]):
         # used to define the reward for the agents, defined as the euclidean distance- cost
         x1, y1 = x, y
         x2, y2 = self.goal[0], self.goal[1]
+        if len(new_goal) == 2:
+            x2, y2 = new_goal[0], new_goal[1]
 
         max_reward = (WIDTH ** 2 + HEIGHT ** 2) ** 0.5
         obstacle_reward = 0
@@ -141,19 +143,18 @@ class MADDPG_agent:
             # goal_r5 = goal_r4*multiplier
 
             # Creating distance radii from goal, each element is an increasing distance away from goal
-            for i in range(1, 16):              # distance increase as index increases
+            for i in range(1, 16):  # distance increase as index increases
                 goal_r.append(goal_r[i - 1] + threshold)
 
             goal_distance = self.euclid_distance((x, y), self.goal)
 
             # compare distances and assign appropriate rewards
-            for i in range(0,16):       # index 0 has smallest distance, and index 15 has greatest distance
-                if goal_r[i] <= goal_distance < goal_r[i + 1] and i != 15:
-                    goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * (17- i)
-                    break
-                elif i == 15:
+            for i in range(0, 16):  # index 0 has smallest distance, and index 15 has greatest distance
+                if i == 15:
                     goal_reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5)
-
+                elif goal_r[i] <= goal_distance < goal_r[i + 1]: #and i != 15:
+                    goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * (17 - i)
+                    break
 
 
             # if goal_distance <= goal_r[15]:
@@ -210,13 +211,23 @@ class MADDPG_agent:
         # set city and count parameters
         sa_path = [self.position]  # overwrite the old sa_path
         self.e_counter += 1
+        new_goal = [0]
+        if self.position in self.long_mem[-2:] and self.e_counter >= 3000:
+            # if random.choice([0, 1]) == 1:
+            new_goal = [random.uniform(100, 750), 550]
+
         for i in range(0, 5):  # every episode has 5 transitions
             # later, the action choice will be based on something else
+
             neighbor = random.choice(
                 self.get_neighbors(self.position))  # choose a random neighbor, from the surrounding grid
 
-            current_energy = self.reward(self.position[0], self.position[1])
+            current_energy = self.reward(self.position[0], self.position[1],new_goal)
             next_energy = self.reward(neighbor[0], neighbor[1])
+            # introduce a perturbation by choosing a new random goal temporarily
+                # else:
+                #     new_goal = [random.uniform(100, 750), 150]
+                #     current_energy = self.reward(self.position[0], self.position[1], new_goal)
 
             delta = current_energy - next_energy  # calculating energy cost delta for criterion calculation
 
@@ -257,10 +268,9 @@ class MADDPG_agent:
             self.disp_path.append(self.position)
 
         self.next_reward_neighbor = self.position
-        if self.position == self.goal:
+        if self.goal_test():
             msg_out = f'Agent {self.agent_id} has reached goal at episode {self.e_counter}'
             print(msg_out)
-
 
         return sa_path, self.path_length, self.reward(self.position[0], self.position[
             1])  # return path route and distance to the target, euclid distance

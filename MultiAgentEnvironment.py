@@ -199,8 +199,8 @@ def create_mad_agents_from_agents(agents_in, goal, obstacles):
     for agent in agents_in:
         # edit parameter initialization at some point
         # might be randomized later
-        e_th = .1
-        temp = 1500
+        e_th = .70
+        temp = 1000
         mad_agent = MADDPG_agent((agent.x, agent.y), goal, temp, e_th, obstacles, agent.agent_id)
         agent_objects.append(mad_agent)
     return agent_objects
@@ -410,7 +410,7 @@ class Algorithm:
         compare_list = []
         episode = 0
         agents_pos = []
-        iteration = 7000
+        iteration = 10000
         for agent in self.list_of_agents:
             new_gradient.append(0)
             past_gradient.append(0)
@@ -419,41 +419,61 @@ class Algorithm:
             # while not agent.goal_test():
 
             for agent in self.list_of_agents:
-                # agent.feed_pos(agents_pos)
-                path, length, reward = agent.action()
+
+                if agent.goal != agent.position:
+                    path, length, reward = agent.action()
+
+                # if agent reaches goal, stop that agent, revise q value to push agents to be more aggresive
+                else:
+                    path = []
+                    length = 0
+                    reward = 0
 
                 # update rewards and gradients
                 agent.reward_mem.append(reward + y * agent.next_reward())  # this is q-value stored in agent
                 if episode > 1:
-                    past_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 2] - agent.reward_mem[
-                        episode - 1]) / 2
-                    new_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 1] - agent.reward_mem[episode]) / 2
-                # agents_pos.append(agent.get_pos())
+
+                    if agent.goal == agent.position:
+                        past_gradient[agent.agent_id - 1] = -100
+                        new_gradient[agent.agent_id - 1] = -1000
+                    else:
+                        past_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 2] - agent.reward_mem[
+                            episode - 1]) / 2
+                        new_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 1] - agent.reward_mem[
+                            episode]) / 2
 
             if episode > 1:
+                before_mean = statistics.mean(past_gradient)
+                new_mean = statistics.mean(new_gradient)
+                compare = new_mean - before_mean
 
-                compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
+                p_change = 0.85
                 compare_list.append(compare)
                 # maybe multiply q-gradient by the parameters?
-                if compare <= 0:
+                if compare < 0:
                     for mad_agent in self.list_of_agents:
-                        e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
-                        temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
+                        if mad_agent.e_th - 0.05 * p_change <= 0:  # decrease threshold --> more risky
+                            e_update = 0.01
+                        else:
+                            e_update = mad_agent.e_th - 0.05 * p_change
+                        e_update = mad_agent.e_th - 0.05 * p_change  # increase temp -> more risky
+                        if mad_agent.temp + 500 * p_change > 3000:
+                            temp_update = 3000
+                        else:
+                            temp_update = mad_agent.temp + 500 * p_change
                         mad_agent.update_critic(e_update, temp_update)
 
-                # if compare <= 0:
-                #     for mad_agent in self.list_of_agents:
-                #         e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
-                #         temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
-                #         mad_agent.update_critic(e_update, temp_update)
                 else:
                     for mad_agent in self.list_of_agents:
-                        # currently arbitrary
-                        e_update = (mad_agent.e_th + 1) * 0.01  # increase necessary prob for bad moves
-                        temp_update = (mad_agent.temp + 0.05) * 0.01  # cool down, decrease prob
+                        if mad_agent.e_th + 0.05 * p_change >= 1:  # increase threshold --> less risky
+                            e_update = 0.99
+                        else:
+                            e_update = mad_agent.e_th + 0.05 * p_change
+                        if mad_agent.temp - 500 * p_change <= 0:  # decrease temp -> less risky
+                            temp_update = 100
+                        else:
+                            temp_update = mad_agent.temp - 500 * p_change
                         mad_agent.update_critic(e_update, temp_update)
-
-            # episode += 1 # use only when implementing while statement
 
         for mad_agent in self.list_of_agents:
             paths.append(mad_agent.long_mem)
@@ -606,15 +626,15 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
             # goal_r5 = goal_r4 * multiplier
             #
 
-            goal_r1 = goal_r0+threshold
-            goal_r2 = goal_r1+threshold
-            goal_r3 = goal_r2+threshold
-            goal_r4 = goal_r3+threshold
-            goal_r5 = goal_r4+threshold
+            goal_r1 = goal_r0 + threshold
+            goal_r2 = goal_r1 + threshold
+            goal_r3 = goal_r2 + threshold
+            goal_r4 = goal_r3 + threshold
+            goal_r5 = goal_r4 + threshold
 
-            pygame.draw.circle(screen, (165,42,42), goal_position, goal_r5)
+            pygame.draw.circle(screen, (165, 42, 42), goal_position, goal_r5)
             pygame.draw.circle(screen, (255, 255, 0), goal_position, goal_r4)
-            pygame.draw.circle(screen, (230,230,250), goal_position, goal_r3)
+            pygame.draw.circle(screen, (230, 230, 250), goal_position, goal_r3)
             pygame.draw.circle(screen, (255, 192, 203), goal_position, goal_r2)
             pygame.draw.circle(screen, GREEN, goal_position, goal_r1)
             pygame.draw.circle(screen, RED, goal_position, goal_r0)
