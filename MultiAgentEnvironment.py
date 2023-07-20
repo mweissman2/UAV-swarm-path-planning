@@ -115,11 +115,12 @@ class Wolf(Agent):
 
     def explore(self, goal, obstacles):
         i = 0
+        j = 1
         while self.is_commensal and i < 6:
             # randomly generate an angle
             new_angle = random.uniform(0, 2*math.pi)
             # find a point on that angle
-            new_destination = (self.x + (np.cos(new_angle)*2*MOVEMENT_SPEED), self.y + (np.sin(new_angle)*2*MOVEMENT_SPEED))
+            new_destination = (self.x + (np.cos(new_angle)*j*MOVEMENT_SPEED), self.y + (np.sin(new_angle)*j*MOVEMENT_SPEED))
             value_new_destination = self.heuristic2(new_destination, goal)   # check the heuristic value of that point
             i += 1
             if value_new_destination < self.heuristic2((self.x, self.y), goal) and self.is_valid(new_destination, obstacles):
