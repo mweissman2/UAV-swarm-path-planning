@@ -108,6 +108,8 @@ def main():
 
     if algo != "GWO":
         agents = MultiAgentEnvironment.create_agent_line(100, int(random.uniform(250, 600)), num_rand_agents)
+        MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents, goal_2, algo)
+
     else:
         agents = MultiAgentEnvironment.create_wolf_population(100, int(random.uniform(250, 600)), num_rand_agents)
 
