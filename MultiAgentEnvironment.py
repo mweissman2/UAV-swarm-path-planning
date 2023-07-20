@@ -82,6 +82,9 @@ class Wolf(Agent):
     def make_omega(self):
         self.is_alpha = False
 
+    def make_commensal(self):
+        self.is_commensal = True
+
     def i_already_explored(self):
         self.is_commensal = False
 
@@ -116,7 +119,7 @@ class Wolf(Agent):
             # randomly generate an angle
             new_angle = random.uniform(0, 2*math.pi)
             # find a point on that angle
-            new_destination = (self.x + (np.cos(new_angle)*3*MOVEMENT_SPEED), self.y + (np.sin(new_angle)*3*MOVEMENT_SPEED))
+            new_destination = (self.x + (np.cos(new_angle)*2*MOVEMENT_SPEED), self.y + (np.sin(new_angle)*2*MOVEMENT_SPEED))
             value_new_destination = self.heuristic2(new_destination, goal)   # check the heuristic value of that point
             i += 1
             if value_new_destination < self.heuristic2((self.x, self.y), goal) and self.is_valid(new_destination, obstacles):
@@ -499,8 +502,10 @@ class Algorithm:
                 if wolf.agent_id == alpha_wolf_id:
                     wolf.make_alpha()
                     alpha_position = (wolf.x, wolf.y)
+                    wolf.make_commensal()
                 else:
                     wolf.make_omega()
+                    wolf.make_commensal()
             return alpha_position
 
         paths = []
@@ -529,6 +534,7 @@ class Algorithm:
                 if (wolf.x, wolf.y) != goal:
                     all_agents_at_target = False
                 wolf.update_position(alpha_position, goal, self.obstacles)
+                wolf.explore(goal, self.obstacles)
                 wolf.update_fitness(goal, self.obstacles)
                 wolfFitnessDict[wolf.agent_id] = wolf.fitness  # save new fitness values
             alpha_position = update_hierarchy(wolfFitnessDict)
@@ -657,8 +663,6 @@ def run_scenario_multi_agent_diagnostics(lo_obstacles, lo_agents, goal_in, algor
         plt.tight_layout()
         plt.savefig("Algorithm_" + algorithm_type + "agents_" + agents_string + ".png")  # Save the plot as an image file
         plt.close()  # Close the figure to release resources
-
-
 
 def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     # Initialize Pygame
