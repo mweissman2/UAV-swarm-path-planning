@@ -106,12 +106,14 @@ def main():
         while num_rand_agents > 15 or num_rand_agents < 1:
             num_rand_agents = int(input("\nHow many random agents would you like to generate?\n"))
 
-        if algo != "GWO":
-            agents = MultiAgentEnvironment.create_agent_line(100, int(random.uniform(100, 600)), num_rand_agents)
-        else:
-            agents = MultiAgentEnvironment.create_wolf_population(100, int(random.uniform(100, 600)), num_rand_agents)
+    if algo != "GWO":
+        agents = MultiAgentEnvironment.create_agent_line(100, int(random.uniform(250, 600)), num_rand_agents)
+        MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents, goal_2, algo)
 
-        MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents_center_line_10, goal_2, algo)
+    else:
+        agents = MultiAgentEnvironment.create_wolf_population(100, int(random.uniform(250, 600)), num_rand_agents)
+
+        MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents, goal_2, algo)
         # SingleAgentEnvironment.run_scenario_single_agent(obstacles, agent_1, goal_1, "A Star")
 
 
