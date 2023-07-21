@@ -198,9 +198,9 @@ class MADDPG_agent:
                 self.disp_path.append(self.position)
 
         self.next_reward_neighbor = self.position
-        if self.position == self.goal:
-            msg_out = f'Agent {self.agent_id} has reached goal at episode {self.e_counter}'
-            print(msg_out)
+        # if self.position == self.goal:
+            # msg_out = f'Agent {self.agent_id} has reached goal at episode {self.e_counter}'
+            # print(msg_out)
 
         # return path route and distance to the target, euclid distance
         return sa_path, self.path_length, self.reward(self.position[0], self.position[1])

@@ -253,8 +253,8 @@ def create_mad_agents_from_agents(agents_in, goal, obstacles):
     for agent in agents_in:
         # edit parameter initialization at some point
         # might be randomized later
-        e_th = .9
-        temp = 3
+        e_th = .8
+        temp = 10
         mad_agent = MADDPG_agent((agent.x, agent.y), goal, temp, e_th, obstacles, agent.agent_id)
         agent_objects.append(mad_agent)
     return agent_objects
@@ -474,6 +474,11 @@ class Algorithm:
             # while not agent.goal_test():
             all_agents_reached_goal = True
 
+            list_agents_triggered = []
+            for agent in self.list_of_agents:
+                if agent.position != agent.goal:
+                    list_agents_triggered.append(agent)
+
             for agent in self.list_of_agents:
                 if agent.position != agent.goal:
                     all_agents_reached_goal = False
@@ -496,30 +501,35 @@ class Algorithm:
 
                 compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
                 compare_list.append(compare)
+
                 # maybe multiply q-gradient by the parameters?
-                if compare <= 0:
+                if abs(compare) < (abs(max(compare_list))*(1/(10 + (len(list_agents_triggered)*5)))):
+                    for mad_agent in self.list_of_agents:
+                        e_update, temp_update = mad_agent.e_th, mad_agent.temp
+                        if mad_agent.e_th > 0.1:
+                            e_update = mad_agent.e_th - 0.1  # gets smaller -> more risky
+                        if mad_agent.temp < 60:
+                            temp_update = (mad_agent.temp + 1.2)  # gets larger -> more risky
+                        mad_agent.update_critic(e_update, temp_update)
+                elif compare <= 0:
                     # print("updating params, compare: " + str(compare))
                     for mad_agent in self.list_of_agents:
                         e_update, temp_update = mad_agent.e_th, mad_agent.temp
                         if mad_agent.e_th > 0.02:
                             e_update = mad_agent.e_th - 0.02  # gets smaller -> more risky
                         if mad_agent.temp < 60:
-                            temp_update = (mad_agent.temp + 1.2)  # gets larger -> more risky
+                            temp_update = (mad_agent.temp + 0.5)  # gets larger -> more risky
                         mad_agent.update_critic(e_update, temp_update)
-
-                # if compare <= 0:
-                #     for mad_agent in self.list_of_agents:
-                #         e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
-                #         temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
-                #         mad_agent.update_critic(e_update, temp_update)
                 else:
                     # print("done good, compare: " + str(compare))
                     for mad_agent in self.list_of_agents:
                         e_update, temp_update = mad_agent.e_th, mad_agent.temp
                         if mad_agent.e_th < 0.9:
                             e_update = mad_agent.e_th + 0.1  # gets larger -> less risky
-                        if mad_agent.temp > 1:
-                            temp_update = mad_agent.temp * 0.4  # gets smaller -> less risky
+                        if mad_agent.temp > 10:
+                            temp_update = mad_agent.temp - 10  # gets smaller -> less risky
+                        elif mad_agent.temp > 1:
+                            temp_update = mad_agent.temp*0.4
                         mad_agent.update_critic(e_update, temp_update)
 
             # episode += 1 # use only when implementing while statement
@@ -530,6 +540,7 @@ class Algorithm:
 
         print("compare_list:")
         print(compare_list)
+        print(max(compare_list))
         msg = f'Sim completed at episode {episode}'  # only for while statement
         print(msg)
         return disp_paths
