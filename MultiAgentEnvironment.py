@@ -215,6 +215,7 @@ def create_wolf_population(right_x, right_y, num_wolves):
 class Algorithm:
     def __init__(self, list_of_agents, obstacles):
         self.list_of_agents = list_of_agents
+        self.apf_list_of_agents = list_of_agents.copy()
         self.obstacles = obstacles
 
     def a_star_search(self, goal):
@@ -285,24 +286,28 @@ class Algorithm:
 
     def apf_search(self, goal):
         # Compute the attractive force between the agent and the goal
-        def attractive_force(agent_pos, goal_pos):
+        def attractive_force(agent_pos):
             k_att = 5.0  # Attractive force gain
-            dx = (goal_pos[0] - agent_pos[0])
-            dy = goal_pos[1] - agent_pos[1]
+            dx = (goal[0] - agent_pos[0])
+            dy = goal[1] - agent_pos[1]
             angle = math.atan2(dy, dx)  # Not required, but may be useful later
             return k_att * dx, k_att * dy
 
         # Compute the repulsive force between the agent and an obstacle
         def repulsive_force(agent_pos, obstacle_pos, obstacle_radius):
-            k_rep = 60000000  # Repulsive force gain
-            buffer = SEARCH_RADIUS * (2/3)
+            k_rep = 10000000  # Repulsive force gain
+            # k_rep = 500
+            buffer = SEARCH_RADIUS * (1/3)  # was 1/5
             p0 = obstacle_radius + buffer  # Influence radius of F_rep
             obst_dist_x = (agent_pos[0] - obstacle_pos[0])
             obst_dist_y = (agent_pos[1] - obstacle_pos[1])
             dist = (obst_dist_x ** 2 + obst_dist_y ** 2)**0.5  # Dist btwn UAV and obstacle
+            # dist = (obst_dist_x ** 2 + obst_dist_y ** 2) ** 0.5 - obstacle_radius  # Dist btwn UAV and obstacle
             if dist <= p0:
-                x_rep = k_rep * ((1 / obst_dist_x - (1 / p0)) * (1 / obst_dist_x) ** 2)
-                y_rep = k_rep * ((1 / obst_dist_y - (1 / p0)) * (1 / obst_dist_y) ** 2)
+                # x_rep = k_rep * ((1 / obst_dist_x - (1 / p0)) * (1 / obst_dist_x) ** 2)
+                # y_rep = k_rep * ((1 / obst_dist_y - (1 / p0)) * (1 / obst_dist_y) ** 2)
+                x_rep = k_rep**3 * ((1 / dist - 1 / p0) * (obst_dist_x / dist) * (1 / dist) ** 2)
+                y_rep = k_rep**3 * ((1 / dist - 1 / p0) * (obst_dist_y / dist) * (1 / dist) ** 2)
 
                 print("repulsed")
                 return x_rep, y_rep
@@ -311,8 +316,18 @@ class Algorithm:
                 return (0.0, 0.0)
 
         def inter_agent_force(agent, agent_pos):
-            if (agent.x, agent.y) != agent_pos:
-                k_rep = 60000000  # Repulsive force gain
+            dx_agent_pos = (goal[0] - agent_pos[0])
+            dy_agent_pos = (goal[1] - agent_pos[1])
+            dist_agent_pos = (dx_agent_pos ** 2 + dy_agent_pos ** 2) ** 0.5
+
+            dx_agent = (goal[0] - agent.x)
+            dy_agent = (goal[1] - agent.y)
+            dist_agent = (dx_agent ** 2 + dy_agent ** 2) ** 0.5
+
+            threshold = 50
+
+            if (agent.x, agent.y) != agent_pos and (dist_agent_pos > threshold or dist_agent > threshold):
+                k_rep = 100000  # Repulsive force gain
                 buffer = 15
                 p0 = AGENT_RADIUS*2 + buffer  # Influence radius of F_rep
                 inter_dist_x = agent_pos[0] - agent.x
@@ -320,11 +335,13 @@ class Algorithm:
                 dist = (inter_dist_x ** 2 + inter_dist_y ** 2) ** 0.5  # Dist btwn UAV and obstacle
                 if dist <= p0:
                     if inter_dist_x > 0:
-                        x_rep = k_rep * ((1 / inter_dist_x - (1 / p0)) * (1 / inter_dist_x) ** 2)
+                        # x_rep = k_rep * ((1 / inter_dist_x - (1 / p0)) * (1 / inter_dist_x) ** 2)
+                        x_rep = k_rep**3 * ((1 / dist - 1 / p0) * (inter_dist_x / dist) * (1 / dist) ** 2)
                     else:
                         x_rep = 0
                     if inter_dist_y > 0:
-                        y_rep = k_rep * ((1 / inter_dist_y - (1 / p0)) * (1 / inter_dist_y) ** 2)
+                        # y_rep = k_rep * ((1 / inter_dist_y - (1 / p0)) * (1 / inter_dist_y) ** 2)
+                        y_rep = k_rep**3 * ((1 / dist - 1 / p0) * (inter_dist_y / dist)* (1 / dist) ** 2)
                     else:
                         y_rep = 0
                     return x_rep, y_rep
@@ -334,8 +351,8 @@ class Algorithm:
                 return 0.0, 0.0
 
         # Compute the total force acting on the agent at its current position
-        def total_force(agent_pos, goal_pos, obstacles):
-            force_x, force_y = attractive_force(agent_pos, goal_pos)
+        def total_force(agent_pos, obstacles):
+            force_x, force_y = attractive_force(agent_pos)
             print("att_fx:", force_x, "att_fy:", force_y)
 
             for obstacle in obstacles:
@@ -344,7 +361,7 @@ class Algorithm:
                 force_y += rep_force_y
             print("tot_fx:", force_x, "tot_fy:", force_y)
 
-            for agent in self.list_of_agents:
+            for agent in self.apf_list_of_agents:
                 rep_force_x, rep_force_y = inter_agent_force(agent, agent_pos)
                 force_x += rep_force_x
                 force_y += rep_force_y
@@ -352,8 +369,8 @@ class Algorithm:
             return (force_x, force_y)
 
         # Move the agent towards the goal position based on the total force
-        def move_towards(agent_pos, goal_pos, obstacles):
-            force_x, force_y = total_force(agent_pos, goal_pos, obstacles)
+        def move_towards(agent_pos, obstacles):
+            force_x, force_y = total_force(agent_pos, obstacles)
             force_magnitude = math.sqrt(force_x ** 2 + force_y ** 2)
             force_x /= force_magnitude
             force_y /= force_magnitude
@@ -379,21 +396,21 @@ class Algorithm:
 
         paths = []
 
-
         for episode in range(0, 1000):
             all_goal = True
 
-            for agent in self.list_of_agents:
+            for agent in self.apf_list_of_agents:
 
                 # Check if the agent has reached the goal position (close enough)
                 if math.sqrt((agent.x - goal[0]) ** 2 + (agent.y - goal[1]) ** 2) <= MOVEMENT_SPEED:
                     next_pos = goal
                     agent.path.append(goal)
                     agent.temp_path.append(goal)
+                    # self.list_of_agents.remove(agent) # Need to remove the agent somehow if it reaches the goal
 
                 else:
                     all_goal = False
-                    next_pos = move_towards((agent.x, agent.y), goal, self.obstacles)
+                    next_pos = move_towards((agent.x, agent.y), self.obstacles)
                     agent.temp_path.append(next_pos)
                     agent.path.append(next_pos)
 
@@ -405,26 +422,6 @@ class Algorithm:
 
         for agent in self.list_of_agents:
             paths.append(agent.temp_path)
-
-        # for agent in self.list_of_agents:
-        #
-        #     temp_path = [agent.start]
-        #     current_pos = agent.start
-        #
-        #     for i in range(1000):
-        #         # Move towards the next position based on the total force
-        #         next_pos = move_towards(current_pos, goal, self.obstacles)
-        #         temp_path.append(next_pos)
-        #
-        #         # Check if the agent has reached the goal position
-        #         if math.sqrt((next_pos[0] - goal[0]) ** 2 + (next_pos[1] - goal[1]) ** 2) <= MOVEMENT_SPEED:
-        #             break
-        #
-        #         current_pos = next_pos
-        #
-        #     paths.append(temp_path)
-        # for agent, temp_path in zip(self.list_of_agents, paths):
-        #     agent.path = temp_path[1:]
 
         return paths
 
