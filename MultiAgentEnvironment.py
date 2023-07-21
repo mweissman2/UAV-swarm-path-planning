@@ -472,8 +472,12 @@ class Algorithm:
 
         for episode in range(0, iteration):
             # while not agent.goal_test():
+            all_agents_reached_goal = True
 
             for agent in self.list_of_agents:
+                if agent.position != agent.goal:
+                    all_agents_reached_goal = False
+
                 # agent.feed_pos(agents_pos)
                 path, length, reward = agent.action()
 
@@ -484,6 +488,9 @@ class Algorithm:
                         episode - 1]) / 2
                     new_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 1] - agent.reward_mem[episode]) / 2
                 # agents_pos.append(agent.get_pos())
+
+            if all_agents_reached_goal:
+                break
 
             if episode > 1:
 
