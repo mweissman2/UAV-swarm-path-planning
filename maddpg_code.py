@@ -85,7 +85,7 @@ class MADDPG_agent:
     def euclid_distance(self, position_now, target):  # next needs to be a list with two numbers, one x and one y
         x1, y1 = position_now[0], position_now[1]
         x2, y2 = target[0], target[1]
-        return ((x1 - x2) ** 2 + (x2 - y2) ** 2) ** 0.5
+        return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
 
     def update_critic(self, e_update, temp_update):
         # update reward function
@@ -120,85 +120,15 @@ class MADDPG_agent:
             p3 = p0 + 12
             distance = self.euclid_distance((x, y), (obstacle.x, obstacle.y))
 
-            # set negative reward for being close to the obstacle
-            # if p0 < distance < p1:
-            #     obstacle_reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5)*1.6
-            #
-            # elif p1 < distance < p2:
-            #     obstacle_reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5)*1.3
-            #
-            # elif p2 < distance < p3:
-            #     obstacle_reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5)*1.2
-
-            multiplier = 1.75
-            threshold = 50
-            goal_r0 = AGENT_RADIUS * 5  # assumes agent radius is same as goal collision radius
-            goal_r = [goal_r0]
-            # goal_r1 = goal_r0+multiplier
-            # goal_r2 = goal_r1*multiplier
-            # goal_r3 = goal_r2*multiplier
-            # goal_r4 = goal_r3*multiplier
-            # goal_r5 = goal_r4*multiplier
-
-            # Creating distance radii from goal, each element is an increasing distance away from goal
-            for i in range(1, 16):              # distance increase as index increases
-                goal_r.append(goal_r[i - 1] + threshold)
-
-            goal_distance = self.euclid_distance((x, y), self.goal)
-
-            # compare distances and assign appropriate rewards
-            for i in range(0,16):       # index 0 has smallest distance, and index 15 has greatest distance
-                if goal_r[i] <= goal_distance < goal_r[i + 1] and i != 15:
-                    goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * (17- i)
-                    break
-                elif i == 15:
-                    goal_reward = -(max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5)
-
-
-
-            # if goal_distance <= goal_r[15]:
-            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5)
-            # elif goal_r[14] <= goal_distance < goal_r[15]:
-            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * 1.5
-            # elif goal_r[13] <= goal_distance < goal_r[14]:
-            #
-            #
-            # elif goal_r4 <= goal_distance < goal_r5:
-            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * 2
-            # elif goal_r3 <= goal_distance < goal_r4:
-            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * 4
-            # elif goal_r2 <= goal_distance < goal_r3:
-            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * 4
-            # elif goal_r1 <= goal_distance < goal_r2:
-            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * 4
-            # elif goal_distance < goal_r1:
-            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * 4
-            # else:
-            #     goal_reward = (max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5) * 0.5
-
-            # this directs agents on straight line path
-            # else:
-            #     reward = max_reward - (abs(x1 - x2) + abs(y1 - y2)) ** 0.5
-
             reward = obstacle_reward + goal_reward
-            # print(reward)
             # Setting reward to 0 for collision case
             if distance <= p0:
                 reward = 0
 
-        # test if the drone is stuck in a local maxima
-        # if self.position in self.long_mem[-3:]:
-        #      reward = -reward
-
-        # test how close the agents are to each other
-        # R0 = AGENT_RADIUS*2
-        # if len(self.swarm_pos) > 1:
-        #     for agents in self.swarm_pos:
-        #         col_distance = self.euclid_distance((x, y), (agents[0], agents[1]))
-        #         if col_distance <= R0:
-        #             reward = 0
-
+        reward = max_reward - self.euclid_distance((x, y), (x2, y2))
         return reward
+
+
 
     # actions are Defined via simulated annealing algorithm, which determines which action to take locally
     # members of the swarm will have to use their own action
@@ -210,60 +140,70 @@ class MADDPG_agent:
         # set city and count parameters
         sa_path = [self.position]  # overwrite the old sa_path
         self.e_counter += 1
+        new_angle = random.uniform(0, 2 * math.pi)
+
         for i in range(0, 5):  # every episode has 5 transitions
             # later, the action choice will be based on something else
-            neighbor = random.choice(
-                self.get_neighbors(self.position))  # choose a random neighbor, from the surrounding grid
+            if self.euclid_distance(self.position, self.goal) <= MOVEMENT_SPEED:
+                self.position = self.goal
+                sa_path.append(self.position)
+                self.long_mem.append(self.position)
+                self.disp_path.append(self.position)
+                break
 
-            current_energy = self.reward(self.position[0], self.position[1])
-            next_energy = self.reward(neighbor[0], neighbor[1])
+            random_addition = random.uniform(-math.pi / 6, math.pi / 6)
+            new_destination = (self.position[0] + (np.cos(new_angle + random_addition) * MOVEMENT_SPEED),
+                               self.position[1] + (np.sin(new_angle + random_addition) * MOVEMENT_SPEED))
 
-            delta = current_energy - next_energy  # calculating energy cost delta for criterion calculation
+            if self.is_valid(new_destination):
+                current_energy = self.reward(self.position[0], self.position[1])
+                next_energy = self.reward(new_destination[0], new_destination[1])
 
-            # Debugging/Tuning print statements
-            # print("temp: " + str(self.temp))
-            # print("delta: " + str(delta))
-            # print("pos 1: " + str(self.position) + " pos 2: " + str(neighbor))
-            # print("curr reward: " + str(current_energy))
-            # print("next reward: " + str(next_energy))
-
-            # Occasionally the probability calc is not a real number result, if so probability is set to 0
-            try:
-                prob = math.exp(-delta / self.temp)
-            except:
-                # print("Didn't Calculate")
-                prob = 0
-
-            if delta < 0:
-                # print("accepted best option")
-                self.position = neighbor
-
-            elif prob > self.e_th:
-                self.position = neighbor
+                delta = current_energy - next_energy  # calculating energy cost delta for criterion calculation
 
                 # Debugging/Tuning print statements
-                # print("accepted possibly worse option")
+                # print("temp: " + str(self.temp))
+                # print("delta: " + str(delta))
+                # print("pos 1: " + str(self.position) + " pos 2: " + str(neighbor))
+                # print("curr reward: " + str(current_energy))
+                # print("next reward: " + str(next_energy))
+
+                # Occasionally the probability calc is not a real number result, if so probability is set to 0
+                try:
+                    prob = math.exp(-delta / self.temp)
+                except:
+                    # print("Didn't Calculate")
+                    prob = 0
+
+                if delta < 0:
+                    # print("accepted best option")
+                    self.position = new_destination
+
+                elif prob > self.e_th:
+                    self.position = new_destination
+
+                    # Debugging/Tuning print statements
+                    # print("accepted possibly worse option")
+                    # print("prob: " + str(prob))
+                    # print("eth: " + str(self.e_th))
+
+                # else:
+                # Debugging/Tuning print statements
+                # print("stayed")
                 # print("prob: " + str(prob))
                 # print("eth: " + str(self.e_th))
 
-            # else:
-            # Debugging/Tuning print statements
-            # print("stayed")
-            # print("prob: " + str(prob))
-            # print("eth: " + str(self.e_th))
-
-            sa_path.append(self.position)
-            self.long_mem.append(self.position)
-            self.disp_path.append(self.position)
+                sa_path.append(self.position)
+                self.long_mem.append(self.position)
+                self.disp_path.append(self.position)
 
         self.next_reward_neighbor = self.position
         if self.position == self.goal:
             msg_out = f'Agent {self.agent_id} has reached goal at episode {self.e_counter}'
             print(msg_out)
 
-
-        return sa_path, self.path_length, self.reward(self.position[0], self.position[
-            1])  # return path route and distance to the target, euclid distance
+        # return path route and distance to the target, euclid distance
+        return sa_path, self.path_length, self.reward(self.position[0], self.position[1])
 
     def next_reward(self):
         # maybe add obstacle repulsion later
