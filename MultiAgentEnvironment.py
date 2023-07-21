@@ -2,14 +2,19 @@ import random
 import pygame
 import heapq
 import math
+
+from matplotlib import pyplot as plt
+
 from maddpg_code import *
 import statistics
 import numpy
 import imageio
+import time
+
 
 # Constants
 WIDTH = 800  # Width of the simulation window
-HEIGHT = 608  # Height of the simulation window
+HEIGHT = 600  # Height of the simulation window
 AGENT_RADIUS = 10  # Radius of the agent
 OBSTACLE_RADIUS = 30  # Radius of the obstacles
 MOVEMENT_SPEED = 3  # Movement speed of the agent
@@ -31,6 +36,7 @@ class Agent:
         self.y = y
         self.start = (self.x, self.y)
         self.path = []
+        self.disp_goal_reached = False
         self.temp_path = []
 
     def get_id(self):
@@ -42,9 +48,12 @@ class Agent:
             dx = next_pos[0] - self.x
             dy = next_pos[1] - self.y
             distance = (dx ** 2 + dy ** 2) ** 0.5
+
             self.x = next_pos[0]
             self.y = next_pos[1]
             self.path.pop(0)
+            if len(self.path) == 0:
+                print("agent path completed")
 
     def draw(self, screen):
         pygame.draw.circle(screen, GREEN, (self.x, self.y), AGENT_RADIUS)
@@ -55,7 +64,18 @@ class Wolf(Agent):
         self.fitness = 0.0
         self.search_radius = SEARCH_RADIUS
         self.is_alpha = False
+        self.is_commensal = True
         self.temppath = []
+
+    def heuristic(self, point):
+        dx = point[0] - self.x
+        dy = point[1] - self.y
+        return math.sqrt((dx ** 2 + dy ** 2))
+
+    def heuristic2(self, point, goal):
+        dx = point[0] - goal[0]
+        dy = point[1] - goal[1]
+        return math.sqrt((dx ** 2 + dy ** 2))
 
     def make_alpha(self):
         self.is_alpha = True
@@ -63,20 +83,79 @@ class Wolf(Agent):
     def make_omega(self):
         self.is_alpha = False
 
-    def is_visible(self, x, y):
-        # checks if new positions are within the wolf's search space, i.e., visible to the wolf
-        dist_to_desired_pos = math.sqrt(((x - self.x) ** 2 + (y - self.y) ** 2))
-        return dist_to_desired_pos <= self.search_radius
+    def make_commensal(self):
+        self.is_commensal = True
 
-    def update_fitness(self, goal):
-        dx = self.x - goal[0]
-        dy = self.y - goal[1]
-        distance_to_goal = math.sqrt((dx ** 2 + dy ** 2))
-        self.fitness = distance_to_goal
+    def i_already_explored(self):
+        self.is_commensal = False
 
-    def update_position(self, alpha_position, goal):
+    def is_valid(self, node, obstacles):
+        x, y = node
+        if x < 0 or x >= WIDTH or y < 0 or y >= HEIGHT:
+            return False
+        for obstacle in obstacles:
+            if ((x - obstacle.x) ** 2 + (y - obstacle.y) ** 2) ** 0.5 <= AGENT_RADIUS + obstacle.radius:
+                return False
+        return True
+
+    def is_visible(self, obstacle):
+        distance_from_obstacle = (((self.x - obstacle.x)**2 + (self.y - obstacle.y)**2)**0.5)-obstacle.radius
+        if distance_from_obstacle < (self.search_radius + obstacle.radius):
+            return True, distance_from_obstacle
+        else:
+            return False, distance_from_obstacle
+
+    def obstacles_in_range(self, obstacles):
+        # finds obstacles within search radius and returns visible obstacles and their distances
+        list_of_threats = []
+        for obstacle in obstacles:
+            threat, distance_from_obstacle = self.is_visible(obstacle)
+            if threat:
+                list_of_threats.append(1/(distance_from_obstacle**2))
+        return list_of_threats
+
+    def explore(self, goal, obstacles):
+        i = 0
+        j = 1
+        while self.is_commensal and i < 6:
+            # randomly generate an angle
+            new_angle = random.uniform(0, 2*math.pi)
+            # find a point on that angle
+            new_destination = (self.x + (np.cos(new_angle)*j*MOVEMENT_SPEED), self.y + (np.sin(new_angle)*j*MOVEMENT_SPEED))
+            value_new_destination = self.heuristic2(new_destination, goal)   # check the heuristic value of that point
+            i += 1
+            if value_new_destination < self.heuristic2((self.x, self.y), goal) and self.is_valid(new_destination, obstacles):
+                self.x = new_destination[0]
+                self.y = new_destination[1]
+                self.path.append((self.x, self.y))
+                self.temppath.append((self.x, self.y,))
+                self.i_already_explored()
+
+
+    def update_fitness(self, goal, obstacles):
+        # J_fuel = len(self.temppath)
+        J_threat = 0.0
+        mu = 0.2    # we liked 0.9
+        k = 500
+        list_of_threats = self.obstacles_in_range(obstacles)
+        for obstacle in list_of_threats:
+            J_threat = J_threat + obstacle*k  # larger cost the closer it gets to the obstacle
+        J_fuel = self.heuristic(goal)   # distance from goal
+        J_cost = mu * J_fuel + (1 - mu) * J_threat
+
+        #if J_cost != 0:
+        #    print('J_fuel' + str(J_fuel) + 'J_threat' + str(J_cost))
+        self.fitness = J_cost
+
+    def update_position(self, alpha_position, goal, obstacles):
         # find new position based on alpha/omega designation
-        if self.is_alpha == True:
+        if math.sqrt((self.x - goal[0]) ** 2 + (self.y - goal[1]) ** 2) <= MOVEMENT_SPEED:
+            self.path.append(goal)
+            self.temppath.append(goal)
+            self.x = goal[0]
+            self.y = goal[1]
+
+        if self.is_alpha:
             # calculate distance and direction to goal
             dx = goal[0] - self.x
             dy = goal[1] - self.y
@@ -91,9 +170,9 @@ class Wolf(Agent):
             new_x = self.x + dx * MOVEMENT_SPEED
             new_y = self.y + dy * MOVEMENT_SPEED
 
-        else:
+        else:   # omega wolves
             # implement position update logic based on alpha position
-            strength = random.uniform(0.01, 0.2)  # randomized strength "pull" towards alpha wolf
+            strength = random.uniform(0.5, 2)  # randomized strength "pull" towards alpha wolf
 
             # calculate distance and direction to alpha wolf
             dx_alpha = alpha_position[0] - self.x
@@ -102,22 +181,10 @@ class Wolf(Agent):
 
             # update position to move towards alpha, dependent on strength variable
             if distance_alpha > 0:
-                dx = goal[0] - self.x
-                dy = goal[1] - self.y
-                magnitude = math.sqrt((dx ** 2 + dy ** 2))
-
-                # normalize direction vector to goal
-                if magnitude > 0:
-                    dx /= magnitude
-                    dy /= magnitude
-
-                new_x = self.x + dx * MOVEMENT_SPEED
-                new_y = self.y + dy * MOVEMENT_SPEED
-                #direction_x = int(dx_alpha / distance_alpha * strength * MOVEMENT_SPEED)
-                #direction_y = int(dy_alpha / distance_alpha * strength * MOVEMENT_SPEED)
-                #new_x = self.x + direction_x
-                #new_y = self.y + direction_y
-                print("hello")
+                direction_x = int(dx_alpha / distance_alpha * strength * MOVEMENT_SPEED)
+                direction_y = int(dy_alpha / distance_alpha * strength * MOVEMENT_SPEED)
+                new_x = self.x + direction_x
+                new_y = self.y + direction_y
             else:
                 dx = goal[0] - self.x
                 dy = goal[1] - self.y
@@ -131,15 +198,11 @@ class Wolf(Agent):
                 new_y = self.y + dy * MOVEMENT_SPEED
 
         # checks and limits new position within search space
-        #if self.is_visible(new_x, new_y):
-        self.x = new_x
-        self.y = new_y
-        self.path.append((self.x, self.y))
-        self.temppath.append((self.x, self.y,))
-
-        #else:
-        #    self.x = max(search_space[0], min(new_x, search_space[1]))
-        #    self.y = max(search_space[2], min(new_y, search_space[3]))
+        if self.is_valid((new_x, new_y), obstacles):
+            self.x = new_x
+            self.y = new_y
+            self.path.append((self.x, self.y))
+            self.temppath.append((self.x, self.y,))
 
 
 class Obstacle:
@@ -150,7 +213,6 @@ class Obstacle:
 
     def draw(self, screen):
         pygame.draw.circle(screen, BLACK, (self.x, self.y), self.radius)
-        pygame.draw.l
 
 
 # ******* new addition below   *******************
@@ -429,13 +491,14 @@ class Algorithm:
         q = []
         y = .54  # discount value, also currently
         paths = []
+        disp_paths = []
         new_gradient = []
         past_gradient = []
         for agent in self.list_of_agents:
             new_gradient.append(0)
             past_gradient.append(0)
 
-        for episode in range(0, 2000):
+        for episode in range(0, 3000):
 
             for agent in self.list_of_agents:
                 path, length, reward = agent.action()
@@ -452,24 +515,25 @@ class Algorithm:
 
                 compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
                 if compare <= 0:
-                    print("updating params, compare: " + str(compare))
+                    # print("updating params, compare: " + str(compare))
                     for mad_agent in self.list_of_agents:
                         # currently arbitrary
                         e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
                         temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
                         mad_agent.update_critic(e_update, temp_update)
                 else:
-                    print("done good, compare: " + str(compare))
+                    # print("done good, compare: " + str(compare))
                     for mad_agent in self.list_of_agents:
                         # currently arbitrary
                         e_update = (mad_agent.e_th + 1) * 0.01  # increase necessary prob for bad moves
                         temp_update = (mad_agent.temp + 0.05) * 0.01  # cool down, decrease prob
                         mad_agent.update_critic(e_update, temp_update)
 
-        for agent in self.list_of_agents:
-            paths.append(agent.long_mem)
+        for mad_agent in self.list_of_agents:
+            paths.append(mad_agent.long_mem)
+            disp_paths.append(mad_agent.disp_path)
 
-        return paths
+        return disp_paths
 
     def simplified_gwo_search(self, goal, max_iterations):
         def heuristic(node, goal):
@@ -486,25 +550,18 @@ class Algorithm:
                     return False
             return True
 
-        def get_neighbors(node):
-            x, y = node
-            neighbors = [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)]  # 4-connected grid
-            valid_neighbors = []
-            for neighbor in neighbors:
-                if is_valid(neighbor):
-                    valid_neighbors.append(neighbor)
-            return valid_neighbors
-
         def update_hierarchy(wolfFitnessDict):
             # finds minimum fitness value in the dictionary, assumes global minimum
             alpha_wolf_id = min(wolfFitnessDict, key=wolfFitnessDict.get)
-            alpha_position = self.list_of_agents[0].x, self.list_of_agents[0].y
+            # alpha_position = self.list_of_agents[alpha_wolf_id].x, self.list_of_agents[alpha_wolf_id].y
             for wolf in self.list_of_agents:
                 if wolf.agent_id == alpha_wolf_id:
                     wolf.make_alpha()
                     alpha_position = (wolf.x, wolf.y)
+                    wolf.make_commensal()
                 else:
                     wolf.make_omega()
+                    wolf.make_commensal()
             return alpha_position
 
         paths = []
@@ -512,22 +569,30 @@ class Algorithm:
 
     # MAIN LOOP OF GWO ALGORITHM
         wolfFitnessDict = {}
-
+        i = random.randint(0, len(self.list_of_agents)-1)
         # use first wolf as preliminary alpha
         for wolf in self.list_of_agents:
             wolf.path.append(wolf.start)
             wolf.temppath.append(wolf.start)
-            wolf.update_position((self.list_of_agents[0].x, self.list_of_agents[0].y), goal)
-            wolf.update_fitness(goal)
+            wolf.update_position((self.list_of_agents[i].x, self.list_of_agents[i].y), goal, self.obstacles)
+            wolf.explore(goal, self.obstacles)
+            wolf.update_fitness(goal, self.obstacles)
             wolfFitnessDict[wolf.agent_id] = wolf.fitness   # save new fitness values
         alpha_position = update_hierarchy(wolfFitnessDict)
 
         # cycle thru episodes to find iterative alphas
-        for e in range(max_iterations):
+        e = 0
+        all_agents_at_target = False
+        while e < max_iterations and not all_agents_at_target:
+            e += 1
+            all_agents_at_target = True
             for wolf in self.list_of_agents:
-                wolf.update_position(alpha_position, goal)
-                wolf.update_fitness(goal)
-                wolfFitnessDict[wolf.agent_id] = wolf.fitness   # save new fitness values
+                if (wolf.x, wolf.y) != goal:
+                    all_agents_at_target = False
+                wolf.update_position(alpha_position, goal, self.obstacles)
+                wolf.explore(goal, self.obstacles)
+                wolf.update_fitness(goal, self.obstacles)
+                wolfFitnessDict[wolf.agent_id] = wolf.fitness  # save new fitness values
             alpha_position = update_hierarchy(wolfFitnessDict)
 
         # reconstruct path
@@ -538,6 +603,122 @@ class Algorithm:
             temppath.reverse()
         return temppath
 
+def path_length_diagnostics(paths, goal, obstacles):
+    total_path_length = 0
+    incomplete_paths = 0
+    complete_paths = 0
+
+    for path in paths:
+        temp_length = 0
+        path_complete = False
+        prev_point = path[0]
+        for point in path:
+            temp_length += 1
+            if point == goal:
+                path_complete = True
+                break
+            for obstacle in obstacles:
+                dx = point[0] - obstacle.x
+                dy = point[1] - obstacle.y
+                distance = math.sqrt(dx ** 2 + dy ** 2)
+                if distance <= AGENT_RADIUS + obstacle.radius:
+                    path_complete = False
+                    break
+
+            dx = point[0] - prev_point[0]
+            dy = point[1] - prev_point[1]
+            distance = math.sqrt(dx ** 2 + dy ** 2)
+            if distance > 5:
+                path_complete = False
+                break
+            prev_point = point
+
+        if path_complete:
+            total_path_length += temp_length
+            complete_paths += 1
+        else:
+            incomplete_paths += 1
+
+    if complete_paths > 0:
+        average_path_length = float(total_path_length)/complete_paths
+    else:
+        average_path_length = 0
+    completion_percentage = float(complete_paths)/(complete_paths + incomplete_paths)
+
+    return average_path_length, completion_percentage
+
+def run_scenario_multi_agent_diagnostics(lo_obstacles, lo_agents, goal_in, algorithm_type):
+    for agents in lo_agents:
+        environment_complexities = []
+        i = 0
+        elapsed_times = []
+        average_lengths = []
+        completion_percentages = []
+
+        for obstacles in lo_obstacles:
+            i += 1
+            # input variables
+            goal_position = goal_in
+            paths = []
+
+            # time the length of the algorithm for results
+            start_time = time.time()
+
+            # Find paths for each agent depending on search method
+            # Add the way your algorithm is accessed here
+            if algorithm_type == "A Star":
+                # Create an instance of the Algorithm class
+                algorithm = Algorithm(agents, obstacles)
+                paths = algorithm.a_star_search(goal_position)
+                print(paths)
+            elif algorithm_type == "APF":
+                algorithm = Algorithm(agents, obstacles)
+                paths = algorithm.apf_search(goal_position)
+            elif algorithm_type == "GWO":
+                algorithm = Algorithm(agents, obstacles)
+                paths = algorithm.simplified_gwo_search(goal_position, max_iterations=1000)
+            elif algorithm_type == "MAD":
+                mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
+                mad_algorithm = Algorithm(mad_agents, obstacles)
+                paths = mad_algorithm.mad_search()
+            else:
+                print("invalid algorithm")
+
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            average_length, completion_percentage = path_length_diagnostics(paths, goal_position, obstacles)
+
+            # Store the data in the respective lists
+            elapsed_times.append(elapsed_time)
+            average_lengths.append(average_length)
+            completion_percentages.append(completion_percentage)
+
+            # Store the complexity value for the current environment
+            environment_complexities.append("obstacle difficulty: " + str(i))
+            print("datapoint complete")
+
+        agents_string = str(len(agents))
+        # Plot the data for the current agent
+        plt.figure()
+        plt.suptitle("Algorithm: " + algorithm_type + "\nAmount of agents: " + agents_string)
+        plt.subplot(311)
+        plt.plot(environment_complexities, elapsed_times, marker='o')
+        plt.xlabel('Environment Complexity')
+        plt.ylabel('Elapsed Time')
+
+        plt.subplot(312)
+        plt.plot(environment_complexities, average_lengths, marker='o')
+        plt.xlabel('Environment Complexity')
+        plt.ylabel('Average Length')
+
+        plt.subplot(313)
+        plt.plot(environment_complexities, completion_percentages, marker='o')
+        plt.xlabel('Environment Complexity')
+        plt.ylabel('Completion Percentage')
+
+        plt.tight_layout()
+        plt.savefig("Algorithm_" + algorithm_type + "agents_" + agents_string + ".png")  # Save the plot as an image file
+        plt.close()  # Close the figure to release resources
 
 def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     # Initialize Pygame
@@ -552,6 +733,9 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     goal_position = goal_in
     paths = []
 
+    # time the length of the algorithm for results
+    start_time = time.time()
+
     # Find paths for each agent depending on search method
     # Add the way your algorithm is accessed here
     if algorithm_type == "A Star":
@@ -564,7 +748,7 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         paths = algorithm.apf_search(goal_position)
     elif algorithm_type == "GWO":
         algorithm = Algorithm(agents, obstacles)
-        paths = algorithm.simplified_gwo_search(goal_position, max_iterations=1000)
+        paths = algorithm.simplified_gwo_search(goal_position, max_iterations=4000)
     elif algorithm_type == "MAD":
         mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
         mad_algorithm = Algorithm(mad_agents, obstacles)
@@ -572,6 +756,14 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         # print(paths)
     else:
         print("invalid algorithm")
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"The algorithm block took {elapsed_time} seconds to execute.")
+
+    average_length, completion_percentage = path_length_diagnostics(paths, goal_position, obstacles)
+    print(f"The average path length of the swarm was {average_length} points")
+    print(f"The percentage of robots that made it to the goal was {completion_percentage * 100}%")
 
     frames = []
 
@@ -584,8 +776,19 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
                 running = False
 
         # Update the agent's position
-        for agent in agents:
-            agent.move()
+        if algorithm_type == "MAD":
+            for agent in mad_agents:
+                agent.move()
+                if agent.position == goal_position and not agent.disp_goal_reached:
+                    print("agent reached goal")
+                    agent.disp_goal_reached = True
+        else:
+            for agent in agents:
+                agent.move()
+                if (agent.x, agent.y) == goal_position and not agent.disp_goal_reached:
+                    print("agent reached goal")
+                    agent.disp_goal_reached = True
+
 
         # Clear the screen
         screen.fill(WHITE)
@@ -597,10 +800,16 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
 
         # Draw the agent
         # Draw the start and goal positions
-        for agent in agents:
-            agent.draw(screen)
-            pygame.draw.circle(screen, BLUE, agent.start, 5)
-            pygame.draw.circle(screen, BLUE, goal_position, 5)
+        if algorithm_type == "MAD":
+            for agent in mad_agents:
+                agent.draw(screen)
+                pygame.draw.circle(screen, BLUE, agent.start, 5)
+                pygame.draw.circle(screen, BLUE, goal_position, 5)
+        else:
+            for agent in agents:
+                agent.draw(screen)
+                pygame.draw.circle(screen, BLUE, agent.start, 5)
+                pygame.draw.circle(screen, BLUE, goal_position, 5)
 
         # Draw the obstacles
         for obstacle in obstacles:
@@ -608,7 +817,9 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
 
         # Draw the path
         for path in paths:
+            # print(path)
             pygame.draw.lines(screen, BLUE, False, path)
+
 
         # Update the display
         pygame.display.flip()
