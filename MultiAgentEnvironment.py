@@ -29,6 +29,7 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 
+
 class Agent:
     def __init__(self, agent_id, x, y):
         self.agent_id = agent_id
@@ -57,6 +58,7 @@ class Agent:
 
     def draw(self, screen):
         pygame.draw.circle(screen, GREEN, (self.x, self.y), AGENT_RADIUS)
+
 
 class Wolf(Agent):
     def __init__(self, agent_id, x, y):
@@ -215,23 +217,31 @@ class Obstacle:
         pygame.draw.circle(screen, BLACK, (self.x, self.y), self.radius)
 
 
+class Boundary:
+    def __init__(self, x_i, y_i, x_f, y_f):
+        self.start_x = x_i
+        self.start_y = y_i
+        self.final_x = x_f
+        self.final_y = y_f
+
+
 # ******* new addition below   *******************
 
-def create_mad_agents(min_x, max_x, min_y, max_y, num_agents, goal, obstacles):
-    # list to contain all agents
-    agent_objects = []
-    #
-
-    for agent_id in range(1, num_agents + 1):
-        x = int(random.uniform(min_x, max_x))
-        y = int(random.uniform(min_y, max_y))
-        e_th = .56 * random.uniform(2, max_y)
-        cool = 0.05 * random.uniform(min_y, max_y)
-        temp = 150
-        count = 50
-        mad_agent = MADDPG_agent((x, y), goal, count, temp, cool, e_th, obstacles, agent_id)
-        agent_objects.append(mad_agent)
-    return agent_objects
+# def create_mad_agents(min_x, max_x, min_y, max_y, num_agents, goal, obstacles):
+#     # list to contain all agents
+#     agent_objects = []
+#     #
+#
+#     for agent_id in range(1, num_agents + 1):
+#         x = int(random.uniform(min_x, max_x))
+#         y = int(random.uniform(min_y, max_y))
+#         e_th = .56 * random.uniform(2, max_y)
+#         cool = 0.05 * random.uniform(min_y, max_y)
+#         temp = 1500
+#         count = 50
+#         mad_agent = MADDPG_agent((x, y), goal, count, temp, cool, e_th, obstacles, agent_id)
+#         agent_objects.append(mad_agent)
+#     return agent_objects
 
 
 def create_mad_agents_from_agents(agents_in, goal, obstacles):
@@ -241,11 +251,12 @@ def create_mad_agents_from_agents(agents_in, goal, obstacles):
     for agent in agents_in:
         # edit parameter initialization at some point
         # might be randomized later
-        e_th = .1
-        temp = 1500
+        e_th = .8
+        temp = 10
         mad_agent = MADDPG_agent((agent.x, agent.y), goal, temp, e_th, obstacles, agent.agent_id)
         agent_objects.append(mad_agent)
     return agent_objects
+
 
 # ************************************************************
 
@@ -259,6 +270,7 @@ def create_random_agents(min_x, max_x, min_y, max_y, num_agents):
         agent_objects.append(agent)
     return agent_objects
 
+
 def create_agent_line(right_x, right_y, num_agents):
     agent_objects = []
     for agent_id in range(1, num_agents + 1):
@@ -267,12 +279,14 @@ def create_agent_line(right_x, right_y, num_agents):
         agent_objects.append(agent)
     return agent_objects
 
+
 def create_wolf_population(right_x, right_y, num_wolves):
     wolf_objects = []
     for agent_id in range(1, num_wolves + 1):
         wolf = Wolf(agent_id, right_x, right_y - 20 * agent_id)
         wolf_objects.append(wolf)
     return wolf_objects
+
 
 class Algorithm:
     def __init__(self, list_of_agents, obstacles):
@@ -494,45 +508,87 @@ class Algorithm:
         disp_paths = []
         new_gradient = []
         past_gradient = []
+        compare_list = []
+        episode = 0
+        agents_pos = []
+        iteration = 15000
         for agent in self.list_of_agents:
             new_gradient.append(0)
             past_gradient.append(0)
 
-        for episode in range(0, 3000):
+        for episode in range(0, iteration):
+            # while not agent.goal_test():
+            all_agents_reached_goal = True
+
+            list_agents_triggered = []
+            for agent in self.list_of_agents:
+                if agent.position != agent.goal:
+                    list_agents_triggered.append(agent)
 
             for agent in self.list_of_agents:
+                if agent.position != agent.goal:
+                    all_agents_reached_goal = False
+
+                # agent.feed_pos(agents_pos)
                 path, length, reward = agent.action()
 
                 # update rewards and gradients
                 agent.reward_mem.append(reward + y * agent.next_reward())  # this is q-value stored in agent
                 if episode > 1:
-                    past_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 2] - agent.reward_mem[episode - 1]) / 2
+                    past_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 2] - agent.reward_mem[
+                        episode - 1]) / 2
                     new_gradient[agent.agent_id - 1] = (agent.reward_mem[episode - 1] - agent.reward_mem[episode]) / 2
+                # agents_pos.append(agent.get_pos())
 
-                # update total paths var
+            if all_agents_reached_goal:
+                break
 
             if episode > 1:
 
                 compare = statistics.mean(new_gradient) - statistics.mean(past_gradient)
-                if compare <= 0:
+                compare_list.append(compare)
+
+                # maybe multiply q-gradient by the parameters?
+                if abs(compare) < (abs(max(compare_list))*(1/(10 + (len(list_agents_triggered)*5)))):
+                    for mad_agent in self.list_of_agents:
+                        e_update, temp_update = mad_agent.e_th, mad_agent.temp
+                        if mad_agent.e_th > 0.1:
+                            e_update = mad_agent.e_th - 0.1  # gets smaller -> more risky
+                        if mad_agent.temp < 60:
+                            temp_update = (mad_agent.temp + 1.2)  # gets larger -> more risky
+                        mad_agent.update_critic(e_update, temp_update)
+                elif compare <= 0:
                     # print("updating params, compare: " + str(compare))
                     for mad_agent in self.list_of_agents:
-                        # currently arbitrary
-                        e_update = mad_agent.e_th * 0.99  # gets smaller -> more risky
-                        temp_update = (mad_agent.temp + 10) * 0.01  # gets smaller -> more risky
+                        e_update, temp_update = mad_agent.e_th, mad_agent.temp
+                        if mad_agent.e_th > 0.02:
+                            e_update = mad_agent.e_th - 0.02  # gets smaller -> more risky
+                        if mad_agent.temp < 60:
+                            temp_update = (mad_agent.temp + 0.5)  # gets larger -> more risky
                         mad_agent.update_critic(e_update, temp_update)
                 else:
                     # print("done good, compare: " + str(compare))
                     for mad_agent in self.list_of_agents:
-                        # currently arbitrary
-                        e_update = (mad_agent.e_th + 1) * 0.01  # increase necessary prob for bad moves
-                        temp_update = (mad_agent.temp + 0.05) * 0.01  # cool down, decrease prob
+                        e_update, temp_update = mad_agent.e_th, mad_agent.temp
+                        if mad_agent.e_th < 0.9:
+                            e_update = mad_agent.e_th + 0.1  # gets larger -> less risky
+                        if mad_agent.temp > 10:
+                            temp_update = mad_agent.temp - 10  # gets smaller -> less risky
+                        elif mad_agent.temp > 1:
+                            temp_update = mad_agent.temp*0.4
                         mad_agent.update_critic(e_update, temp_update)
+
+            # episode += 1 # use only when implementing while statement
 
         for mad_agent in self.list_of_agents:
             paths.append(mad_agent.long_mem)
             disp_paths.append(mad_agent.disp_path)
 
+        print("compare_list:")
+        print(compare_list)
+        print(max(compare_list))
+        msg = f'Sim completed at episode {episode}'  # only for while statement
+        print(msg)
         return disp_paths
 
     def simplified_gwo_search(self, goal, max_iterations):
@@ -567,7 +623,7 @@ class Algorithm:
         paths = []
         temppath = []
 
-    # MAIN LOOP OF GWO ALGORITHM
+        # MAIN LOOP OF GWO ALGORITHM
         wolfFitnessDict = {}
         i = random.randint(0, len(self.list_of_agents)-1)
         # use first wolf as preliminary alpha
@@ -779,9 +835,6 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         if algorithm_type == "MAD":
             for agent in mad_agents:
                 agent.move()
-                if agent.position == goal_position and not agent.disp_goal_reached:
-                    print("agent reached goal")
-                    agent.disp_goal_reached = True
         else:
             for agent in agents:
                 agent.move()
@@ -801,10 +854,34 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         # Draw the agent
         # Draw the start and goal positions
         if algorithm_type == "MAD":
+            # multiplier = 1.75
+            # threshold = 50
+            # goal_r0 = AGENT_RADIUS * 4  # assumes agent radius is same as goal collision radius
+            #
+            # # goal_r1 = goal_r0 * multiplier  # 80
+            # # goal_r2 = goal_r1 * multiplier  # 160
+            # # goal_r3 = goal_r2 * multiplier  # 320
+            # # goal_r4 = goal_r3 * multiplier  # 640
+            # # goal_r5 = goal_r4 * multiplier
+            # #
+            #
+            # goal_r1 = goal_r0+threshold
+            # goal_r2 = goal_r1+threshold
+            # goal_r3 = goal_r2+threshold
+            # goal_r4 = goal_r3+threshold
+            # goal_r5 = goal_r4+threshold
+            #
+            # pygame.draw.circle(screen, (165,42,42), goal_position, goal_r5)
+            # pygame.draw.circle(screen, (255, 255, 0), goal_position, goal_r4)
+            # pygame.draw.circle(screen, (230,230,250), goal_position, goal_r3)
+            # pygame.draw.circle(screen, (255, 192, 203), goal_position, goal_r2)
+            # pygame.draw.circle(screen, GREEN, goal_position, goal_r1)
+            # pygame.draw.circle(screen, RED, goal_position, goal_r0)
             for agent in mad_agents:
                 agent.draw(screen)
                 pygame.draw.circle(screen, BLUE, agent.start, 5)
                 pygame.draw.circle(screen, BLUE, goal_position, 5)
+
         else:
             for agent in agents:
                 agent.draw(screen)
