@@ -14,13 +14,13 @@ import time
 
 # Constants
 WIDTH = 800  # Width of the simulation window
-HEIGHT = 600  # Height of the simulation window
-AGENT_RADIUS = 10  # Radius of the agent
+HEIGHT = 608  # Height of the simulation window
+AGENT_RADIUS = 5  # Radius of the agent
 OBSTACLE_RADIUS = 30  # Radius of the obstacles
 MOVEMENT_SPEED = 3  # Movement speed of the agent
 
 # For APF
-SEARCH_RADIUS = 50
+SEARCH_RADIUS = 20
 
 # Colors
 BLACK = (0, 0, 0)
@@ -293,6 +293,8 @@ class Algorithm:
         self.list_of_agents = list_of_agents
         self.apf_list_of_agents = list_of_agents.copy()
         self.obstacles = obstacles
+        self.force_record = []
+        self.angle_record = [0.0]
 
     def a_star_search(self, goal):
         # Heuristic function (Euclidean distance)
@@ -364,28 +366,29 @@ class Algorithm:
         # Compute the attractive force between the agent and the goal
         def attractive_force(agent_pos):
             k_att = 5.0  # Attractive force gain
+            k_att2 = 3.0  # Velocity gain
             dx = (goal[0] - agent_pos[0])
             dy = goal[1] - agent_pos[1]
-            angle = math.atan2(dy, dx)  # Not required, but may be useful later
-            return k_att * dx, k_att * dy
+
+            return k_att * dx + k_att2 * MOVEMENT_SPEED, k_att * dy + k_att2 * MOVEMENT_SPEED
 
         # Compute the repulsive force between the agent and an obstacle
         def repulsive_force(agent_pos, obstacle_pos, obstacle_radius):
-            k_rep = 10000000  # Repulsive force gain
+            # k_rep = 10000000  # Repulsive force gain
             # k_rep = 500
-            buffer = SEARCH_RADIUS * (1/3)  # was 1/5
+            k_rep = 200
+            buffer = SEARCH_RADIUS * (1/2)  # was 1/5
             p0 = obstacle_radius + buffer  # Influence radius of F_rep
             obst_dist_x = (agent_pos[0] - obstacle_pos[0])
             obst_dist_y = (agent_pos[1] - obstacle_pos[1])
-            dist = (obst_dist_x ** 2 + obst_dist_y ** 2)**0.5  # Dist btwn UAV and obstacle
-            # dist = (obst_dist_x ** 2 + obst_dist_y ** 2) ** 0.5 - obstacle_radius  # Dist btwn UAV and obstacle
+            # dist = (obst_dist_x ** 2 + obst_dist_y ** 2)**0.5  # Dist btwn UAV and obstacle
+            dist = (obst_dist_x ** 2 + obst_dist_y ** 2) ** 0.5 - obstacle_radius  # Dist btwn UAV and obstacle
             if dist <= p0:
                 # x_rep = k_rep * ((1 / obst_dist_x - (1 / p0)) * (1 / obst_dist_x) ** 2)
                 # y_rep = k_rep * ((1 / obst_dist_y - (1 / p0)) * (1 / obst_dist_y) ** 2)
                 x_rep = k_rep**3 * ((1 / dist - 1 / p0) * (obst_dist_x / dist) * (1 / dist) ** 2)
                 y_rep = k_rep**3 * ((1 / dist - 1 / p0) * (obst_dist_y / dist) * (1 / dist) ** 2)
 
-                print("repulsed")
                 return x_rep, y_rep
                 # return k_rep * (1/obst_dist_x), k_rep * (1/obst_dist_y)
             else:
@@ -404,8 +407,8 @@ class Algorithm:
 
             if (agent.x, agent.y) != agent_pos and (dist_agent_pos > threshold or dist_agent > threshold):
                 k_rep = 100000  # Repulsive force gain
-                buffer = 15
-                p0 = AGENT_RADIUS*2 + buffer  # Influence radius of F_rep
+                buffer = AGENT_RADIUS + 1
+                p0 = AGENT_RADIUS + buffer  # Influence radius of F_rep
                 inter_dist_x = agent_pos[0] - agent.x
                 inter_dist_y = agent_pos[1] - agent.y
                 dist = (inter_dist_x ** 2 + inter_dist_y ** 2) ** 0.5  # Dist btwn UAV and obstacle
@@ -429,13 +432,13 @@ class Algorithm:
         # Compute the total force acting on the agent at its current position
         def total_force(agent_pos, obstacles):
             force_x, force_y = attractive_force(agent_pos)
-            print("att_fx:", force_x, "att_fy:", force_y)
+            # print("att_fx:", force_x, "att_fy:", force_y)
 
             for obstacle in obstacles:
                 rep_force_x, rep_force_y = repulsive_force(agent_pos, (obstacle.x, obstacle.y), obstacle.radius)
                 force_x += rep_force_x
                 force_y += rep_force_y
-            print("tot_fx:", force_x, "tot_fy:", force_y)
+            # print("tot_fx:", force_x, "tot_fy:", force_y)
 
             for agent in self.apf_list_of_agents:
                 rep_force_x, rep_force_y = inter_agent_force(agent, agent_pos)
@@ -445,28 +448,34 @@ class Algorithm:
             return (force_x, force_y)
 
         # Move the agent towards the goal position based on the total force
-        def move_towards(agent_pos, obstacles):
+        def move_towards(episode, agent_pos, obstacles):
             force_x, force_y = total_force(agent_pos, obstacles)
+            self.force_record.append((force_x, force_y))
+            angle = math.atan2(force_y, force_x)
+            self.angle_record.append(angle)
             force_magnitude = math.sqrt(force_x ** 2 + force_y ** 2)
             force_x /= force_magnitude
             force_y /= force_magnitude
-            force_x *= MOVEMENT_SPEED
-            force_y *= MOVEMENT_SPEED
+
+            f = 1.3  # jitter coeff
+            del_angle_x = angle - self.angle_record[episode-1]
+            del_angle_y = math.pi/2 - del_angle_x
+            del_angle = (del_angle_x**2 + del_angle_y**2)**0.5
+            thresh = 178
+            if thresh <= math.degrees(abs(del_angle)) < 180:
+                jitter_buff_x = f * math.cos(self.angle_record[episode-1] + 0.5*del_angle_x)
+                jitter_buff_y = f * math.cos((math.pi/2 - self.angle_record[episode-1]) + 0.5*del_angle_y)
+                print("jitter", episode)
+            else:
+                jitter_buff_x = 1
+                jitter_buff_y = 1
+
+            force_x *= MOVEMENT_SPEED * jitter_buff_x
+            force_y *= MOVEMENT_SPEED * jitter_buff_y
+            # print("angle", math.degrees(del_angle), "tot:", MOVEMENT_SPEED * f * math.cos(self.angle_record[episode-1] + 0.5*del_angle))
 
             new_pos_x = agent_pos[0] + force_x
             new_pos_y = agent_pos[1] + force_y
-
-
-            # Check for collision with obstacles and adjust the new position accordingly
-            # for obstacle in obstacles:
-            #     dx = new_pos_x - obstacle.x
-            #     dy = new_pos_y - obstacle.y
-            #     distance = math.sqrt(dx ** 2 + dy ** 2)
-            #     if distance <= AGENT_RADIUS + obstacle.radius:
-            #         angle = math.atan2(dy, dx)
-            #         new_pos_x = obstacle.x + (AGENT_RADIUS + obstacle.radius) * math.cos(angle)
-            #         new_pos_y = obstacle.y + (AGENT_RADIUS + obstacle.radius) * math.sin(angle)
-            #         break
 
             return (new_pos_x, new_pos_y)
 
@@ -486,7 +495,7 @@ class Algorithm:
 
                 else:
                     all_goal = False
-                    next_pos = move_towards((agent.x, agent.y), self.obstacles)
+                    next_pos = move_towards(episode, (agent.x, agent.y), self.obstacles)
                     agent.temp_path.append(next_pos)
                     agent.path.append(next_pos)
 
@@ -591,7 +600,7 @@ class Algorithm:
         print(msg)
         return disp_paths
 
-    def simplified_gwo_search(self, goal, max_iterations):
+    def hsgwo_msos(self, goal, max_iterations):
         def heuristic(node, goal):
             x, y = node
             goal_x, goal_y = goal
@@ -732,7 +741,7 @@ def run_scenario_multi_agent_diagnostics(lo_obstacles, lo_agents, goal_in, algor
                 paths = algorithm.apf_search(goal_position)
             elif algorithm_type == "GWO":
                 algorithm = Algorithm(agents, obstacles)
-                paths = algorithm.simplified_gwo_search(goal_position, max_iterations=1000)
+                paths = algorithm.hsgwo_msos(goal_position, max_iterations=1000)
             elif algorithm_type == "MAD":
                 mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
                 mad_algorithm = Algorithm(mad_agents, obstacles)
@@ -804,7 +813,7 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         paths = algorithm.apf_search(goal_position)
     elif algorithm_type == "GWO":
         algorithm = Algorithm(agents, obstacles)
-        paths = algorithm.simplified_gwo_search(goal_position, max_iterations=4000)
+        paths = algorithm.hsgwo_msos(goal_position, max_iterations=4000)
     elif algorithm_type == "MAD":
         mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
         mad_algorithm = Algorithm(mad_agents, obstacles)
