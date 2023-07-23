@@ -10,6 +10,8 @@ import statistics
 import numpy
 import imageio
 import time
+import csv
+import pandas as pd
 
 
 # Constants
@@ -39,6 +41,7 @@ class Agent:
         self.path = []
         self.disp_goal_reached = False
         self.temp_path = []
+        self.initial_pos = (x, y)  # For permanent pos storage
 
     def get_id(self):
         print(self.agent_id)
@@ -58,6 +61,9 @@ class Agent:
 
     def draw(self, screen):
         pygame.draw.circle(screen, GREEN, (self.x, self.y), AGENT_RADIUS)
+
+    def reset(self):
+        self.x, self.y = self.initial_pos
 
 
 class Wolf(Agent):
@@ -465,7 +471,7 @@ class Algorithm:
             if thresh <= math.degrees(abs(del_angle)) < 180:
                 jitter_buff_x = f * math.cos(self.angle_record[episode-1] + 0.5*del_angle_x)
                 jitter_buff_y = f * math.cos((math.pi/2 - self.angle_record[episode-1]) + 0.5*del_angle_y)
-                print("jitter", episode)
+                # print("jitter", episode)
             else:
                 jitter_buff_x = 1
                 jitter_buff_y = 1
@@ -593,9 +599,9 @@ class Algorithm:
             paths.append(mad_agent.long_mem)
             disp_paths.append(mad_agent.disp_path)
 
-        print("compare_list:")
-        print(compare_list)
-        print(max(compare_list))
+        # print("compare_list:")
+        # print(compare_list)
+        # print(max(compare_list))
         msg = f'Sim completed at episode {episode}'  # only for while statement
         print(msg)
         return disp_paths
@@ -668,6 +674,21 @@ class Algorithm:
             temppath.reverse()
         return temppath
 
+def save_to_csv(data_dict, file_name):
+    # Create an Excel writer object
+    writer = pd.ExcelWriter(file_name, engine='xlsxwriter')
+
+    # Iterate through the dictionary and save each tab to the Excel writer
+    for sheet_name, sheet_data in data_dict.items():
+        # Save the DataFrame to the Excel writer with the sheet_name
+        sheet_data.to_excel(writer, sheet_name=sheet_name, index=False)
+
+    # Save the Excel writer to the file
+    writer.save()
+
+    print(f"Data saved to '{file_name}' successfully!")
+
+
 def path_length_diagnostics(paths, goal, obstacles):
     total_path_length = 0
     incomplete_paths = 0
@@ -713,12 +734,27 @@ def path_length_diagnostics(paths, goal, obstacles):
     return average_path_length, completion_percentage
 
 def run_scenario_multi_agent_diagnostics(lo_obstacles, lo_agents, goal_in, algorithm_type):
+
+    col_names = ['agent_list', 'num of agents', 'obstacle difficulty', 'time', 'path length', 'completion %']
+    data_dict = {}
+    sheet = pd.DataFrame(data_dict)
+
+    j = 0
+
     for agents in lo_agents:
         environment_complexities = []
         i = 0
+        agent_list_name = "Agent " + str(j)
+        agent_len = len(agents)
         elapsed_times = []
         average_lengths = []
         completion_percentages = []
+        new_dict = {}
+        # pos_dict = {}
+        # for agent in agents:
+        #     print(f"agent {agent.agent_id} position {(agent.x, agent.y)}")
+        #     pos_list.append((agent.x, agent.y))
+        #     pos_dict[agent.agent_id] = (agent.x, agent.y)
 
         for obstacles in lo_obstacles:
             i += 1
@@ -737,9 +773,14 @@ def run_scenario_multi_agent_diagnostics(lo_obstacles, lo_agents, goal_in, algor
                 paths = algorithm.a_star_search(goal_position)
                 print(paths)
             elif algorithm_type == "APF":
+                for agent in agents:
+                    print(f"position {(agent.x, agent.y)}")
                 algorithm = Algorithm(agents, obstacles)
                 paths = algorithm.apf_search(goal_position)
             elif algorithm_type == "GWO":
+                # for agent in agents:
+                #     print(f"position {(agent.x, agent.y)}")
+
                 algorithm = Algorithm(agents, obstacles)
                 paths = algorithm.hsgwo_msos(goal_position, max_iterations=1000)
             elif algorithm_type == "MAD":
@@ -762,28 +803,25 @@ def run_scenario_multi_agent_diagnostics(lo_obstacles, lo_agents, goal_in, algor
             environment_complexities.append("obstacle difficulty: " + str(i))
             print("datapoint complete")
 
-        agents_string = str(len(agents))
-        # Plot the data for the current agent
-        plt.figure()
-        plt.suptitle("Algorithm: " + algorithm_type + "\nAmount of agents: " + agents_string)
-        plt.subplot(311)
-        plt.plot(environment_complexities, elapsed_times, marker='o')
-        plt.xlabel('Environment Complexity')
-        plt.ylabel('Elapsed Time')
+            new_dict[col_names[0]] = agent_list_name
+            new_dict[col_names[1]] = agent_len
+            new_dict[col_names[2]] = i
+            new_dict[col_names[3]] = elapsed_time
+            new_dict[col_names[4]] = average_length
+            new_dict[col_names[5]] = completion_percentage
 
-        plt.subplot(312)
-        plt.plot(environment_complexities, average_lengths, marker='o')
-        plt.xlabel('Environment Complexity')
-        plt.ylabel('Average Length')
+            for agent in agents:
+                agent.reset()
 
-        plt.subplot(313)
-        plt.plot(environment_complexities, completion_percentages, marker='o')
-        plt.xlabel('Environment Complexity')
-        plt.ylabel('Completion Percentage')
+            # Append the data point using append method
+            new_data_point = pd.DataFrame(new_dict, index=[i + j])
+            sheet = pd.concat([sheet, new_data_point], ignore_index=True)
 
-        plt.tight_layout()
-        plt.savefig("Algorithm_" + algorithm_type + "agents_" + agents_string + ".png")  # Save the plot as an image file
-        plt.close()  # Close the figure to release resources
+
+        j += 1
+
+    print(sheet.to_string())
+    return sheet
 
 def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     # Initialize Pygame
@@ -807,7 +845,7 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         # Create an instance of the Algorithm class
         algorithm = Algorithm(agents, obstacles)
         paths = algorithm.a_star_search(goal_position)
-        print(paths)
+        # print(paths)
     elif algorithm_type == "APF":
         algorithm = Algorithm(agents, obstacles)
         paths = algorithm.apf_search(goal_position)
