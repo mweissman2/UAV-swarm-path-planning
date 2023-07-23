@@ -600,7 +600,7 @@ class Algorithm:
         print(msg)
         return disp_paths
 
-    def simplified_gwo_search(self, goal, max_iterations):
+    def hsgwo_msos(self, goal, max_iterations):
         def heuristic(node, goal):
             x, y = node
             goal_x, goal_y = goal
@@ -741,7 +741,7 @@ def run_scenario_multi_agent_diagnostics(lo_obstacles, lo_agents, goal_in, algor
                 paths = algorithm.apf_search(goal_position)
             elif algorithm_type == "GWO":
                 algorithm = Algorithm(agents, obstacles)
-                paths = algorithm.simplified_gwo_search(goal_position, max_iterations=1000)
+                paths = algorithm.hsgwo_msos(goal_position, max_iterations=1000)
             elif algorithm_type == "MAD":
                 mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
                 mad_algorithm = Algorithm(mad_agents, obstacles)
@@ -813,7 +813,7 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         paths = algorithm.apf_search(goal_position)
     elif algorithm_type == "GWO":
         algorithm = Algorithm(agents, obstacles)
-        paths = algorithm.simplified_gwo_search(goal_position, max_iterations=4000)
+        paths = algorithm.hsgwo_msos(goal_position, max_iterations=4000)
     elif algorithm_type == "MAD":
         mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
         mad_algorithm = Algorithm(mad_agents, obstacles)

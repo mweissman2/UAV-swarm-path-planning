@@ -8,7 +8,7 @@ from MultiAgentEnvironment import *
 # Constants
 WIDTH = 800  # Width of the simulation window
 HEIGHT = 600  # Height of the simulation window
-AGENT_RADIUS = 10  # Radius of the agent
+AGENT_RADIUS = 5  # Radius of the agent
 OBSTACLE_RADIUS = 30  # Radius of the obstacles
 MOVEMENT_SPEED = 3  # Movement speed of the agent
 
