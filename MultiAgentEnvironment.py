@@ -750,11 +750,6 @@ def run_scenario_multi_agent_diagnostics(lo_obstacles, lo_agents, goal_in, algor
         average_lengths = []
         completion_percentages = []
         new_dict = {}
-        # pos_dict = {}
-        # for agent in agents:
-        #     print(f"agent {agent.agent_id} position {(agent.x, agent.y)}")
-        #     pos_list.append((agent.x, agent.y))
-        #     pos_dict[agent.agent_id] = (agent.x, agent.y)
 
         for obstacles in lo_obstacles:
             i += 1
@@ -773,14 +768,9 @@ def run_scenario_multi_agent_diagnostics(lo_obstacles, lo_agents, goal_in, algor
                 paths = algorithm.a_star_search(goal_position)
                 print(paths)
             elif algorithm_type == "APF":
-                for agent in agents:
-                    print(f"position {(agent.x, agent.y)}")
                 algorithm = Algorithm(agents, obstacles)
                 paths = algorithm.apf_search(goal_position)
             elif algorithm_type == "GWO":
-                # for agent in agents:
-                #     print(f"position {(agent.x, agent.y)}")
-
                 algorithm = Algorithm(agents, obstacles)
                 paths = algorithm.hsgwo_msos(goal_position, max_iterations=1000)
             elif algorithm_type == "MAD":

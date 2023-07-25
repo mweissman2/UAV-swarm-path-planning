@@ -1,3 +1,5 @@
+import pandas as pd
+
 import SingleAgentEnvironment
 import MultiAgentEnvironment
 import random
@@ -100,12 +102,16 @@ def main():
         sheets = {}
         # Change algorithm being tested here (**CHANGE BACK TO LIST OF ALGOS)
         for a in test_list:
-            if a == "GWO":
-                diagnostics_line = diagnostics_wolves
-            else:
-                diagnostics_line = diagnostics_agents
+            sheet = pd.DataFrame()
+            for run in range(5):
+                if a == "GWO":
+                    diagnostics_line = diagnostics_wolves
+                else:
+                    diagnostics_line = diagnostics_agents
 
-            sheet = MultiAgentEnvironment.run_scenario_multi_agent_diagnostics(diagnostics_obstacles, diagnostics_line, goal_2, a)
+                temp_sheet = MultiAgentEnvironment.run_scenario_multi_agent_diagnostics(diagnostics_obstacles, diagnostics_line, goal_2, a)
+                sheet = pd.concat([sheet, temp_sheet], ignore_index=True)
+
             sheets[a] = sheet
 
         MultiAgentEnvironment.save_to_csv(sheets, 'Results.xlsx')
