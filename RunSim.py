@@ -103,13 +103,8 @@ def main():
         # Change algorithm being tested here (**CHANGE BACK TO LIST OF ALGOS)
         for a in test_list:
             sheet = pd.DataFrame()
-            for run in range(5):
-                if a == "GWO":
-                    diagnostics_line = diagnostics_wolves
-                else:
-                    diagnostics_line = diagnostics_agents
-
-                temp_sheet = MultiAgentEnvironment.run_scenario_multi_agent_diagnostics(diagnostics_obstacles, diagnostics_line, goal_2, a)
+            for run in range(50):
+                temp_sheet = MultiAgentEnvironment.run_scenario_multi_agent_diagnostics(diagnostics_obstacles, a)
                 sheet = pd.concat([sheet, temp_sheet], ignore_index=True)
 
             sheets[a] = sheet
@@ -128,7 +123,7 @@ def main():
             num_rand_agents = int(input("\nHow many random agents would you like to generate?\n"))
 
         if algo != "GWO":
-            agents = MultiAgentEnvironment.create_agent_line(100, int(random.uniform(250, 600)), num_rand_agents)
+            agents = MultiAgentEnvironment.create_agent_line(100, int(random.uniform(500, 600)), num_rand_agents)
             MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents, goal_2, algo)
 
         else:

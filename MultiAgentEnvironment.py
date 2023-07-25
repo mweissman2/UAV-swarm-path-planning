@@ -696,12 +696,10 @@ def path_length_diagnostics(paths, goal, obstacles):
 
     for path in paths:
         temp_length = 0
-        path_complete = False
+        path_complete = True
         prev_point = path[0]
         for point in path:
-            temp_length += 1
-            if point == goal:
-                path_complete = True
+            if not path_complete:
                 break
             for obstacle in obstacles:
                 dx = point[0] - obstacle.x
@@ -709,15 +707,17 @@ def path_length_diagnostics(paths, goal, obstacles):
                 distance = math.sqrt(dx ** 2 + dy ** 2)
                 if distance <= AGENT_RADIUS + obstacle.radius:
                     path_complete = False
-                    break
 
             dx = point[0] - prev_point[0]
             dy = point[1] - prev_point[1]
             distance = math.sqrt(dx ** 2 + dy ** 2)
-            if distance > 5:
+            temp_length += distance
+            if distance > MOVEMENT_SPEED*10:
                 path_complete = False
-                break
             prev_point = point
+
+        if path[-1] != goal:
+            path_complete = False
 
         if path_complete:
             total_path_length += temp_length
@@ -730,32 +730,56 @@ def path_length_diagnostics(paths, goal, obstacles):
     else:
         average_path_length = 0
     completion_percentage = float(complete_paths)/(complete_paths + incomplete_paths)
+    print("completion percentage: ")
+    print(completion_percentage)
 
     return average_path_length, completion_percentage
 
-def run_scenario_multi_agent_diagnostics(lo_obstacles, lo_agents, goal_in, algorithm_type):
+
+
+
+def run_scenario_multi_agent_diagnostics(lo_obstacles, algorithm_type):
 
     col_names = ['agent_list', 'num of agents', 'obstacle difficulty', 'time', 'path length', 'completion %']
     data_dict = {}
     sheet = pd.DataFrame(data_dict)
 
-    j = 0
+    i = 0
 
-    for agents in lo_agents:
-        environment_complexities = []
-        i = 0
-        agent_list_name = "Agent " + str(j)
-        agent_len = len(agents)
+
+
+    for obstacles in lo_obstacles:
+        i += 1
+        j = 0
         elapsed_times = []
         average_lengths = []
         completion_percentages = []
         new_dict = {}
 
-        for obstacles in lo_obstacles:
-            i += 1
+        # stupid code for defining diagnostic stuff
+        agents_center_line_10 = create_agent_line(100, 300, 10)
+        agents_center_line_5 = create_agent_line(100, 300, 5)
+        agents_center_line_3 = create_agent_line(100, 300, 3)
+        diagnostics_agents = [agents_center_line_3, agents_center_line_5, agents_center_line_10]
+
+        wolves_center_line_10 = create_wolf_population(100, 300, 10)
+        wolves_center_line_5 = create_wolf_population(100, 300, 5)
+        wolves_center_line_3 = create_wolf_population(100, 300, 3)
+        diagnostics_wolves = [wolves_center_line_3, wolves_center_line_5, wolves_center_line_10]
+
+        if algorithm_type == "GWO":
+            diagnostics_line = diagnostics_wolves
+        else:
+            diagnostics_line = diagnostics_agents
+
+        for agents in diagnostics_line:
+            j += 1
             # input variables
-            goal_position = goal_in
+            goal_position = (700, int(random.uniform(150, 550)))
             paths = []
+
+            agent_list_name = "Agent " + str(j)
+            agent_len = len(agents)
 
             # time the length of the algorithm for results
             start_time = time.time()
@@ -790,7 +814,6 @@ def run_scenario_multi_agent_diagnostics(lo_obstacles, lo_agents, goal_in, algor
             completion_percentages.append(completion_percentage)
 
             # Store the complexity value for the current environment
-            environment_complexities.append("obstacle difficulty: " + str(i))
             print("datapoint complete")
 
             new_dict[col_names[0]] = agent_list_name
@@ -800,15 +823,9 @@ def run_scenario_multi_agent_diagnostics(lo_obstacles, lo_agents, goal_in, algor
             new_dict[col_names[4]] = average_length
             new_dict[col_names[5]] = completion_percentage
 
-            for agent in agents:
-                agent.reset()
-
             # Append the data point using append method
             new_data_point = pd.DataFrame(new_dict, index=[i + j])
             sheet = pd.concat([sheet, new_data_point], ignore_index=True)
-
-
-        j += 1
 
     print(sheet.to_string())
     return sheet
