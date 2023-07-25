@@ -1,3 +1,5 @@
+import pandas as pd
+
 import SingleAgentEnvironment
 import MultiAgentEnvironment
 import random
@@ -19,7 +21,13 @@ agents_center_line_5 = MultiAgentEnvironment.create_agent_line(100, 300, 5)
 agents_center_line_3 = MultiAgentEnvironment.create_agent_line(100, 300, 3)
 diagnostics_agents = [agents_center_line_3, agents_center_line_5, agents_center_line_10]
 
+wolves_center_line_10 = MultiAgentEnvironment.create_wolf_population(100, 300, 10)
+wolves_center_line_5 = MultiAgentEnvironment.create_wolf_population(100, 300, 5)
+wolves_center_line_3 = MultiAgentEnvironment.create_wolf_population(100, 300, 3)
+diagnostics_wolves = [wolves_center_line_3, wolves_center_line_5, wolves_center_line_10]
+
 list_of_algos = ["A Star", "APF", "MAD", "GWO"]
+test_list = ["APF", "MAD", "GWO"]
 
 obstacles_1 = [
     SingleAgentEnvironment.Obstacle(300, 200, OBSTACLE_RADIUS),
@@ -91,9 +99,17 @@ def main():
             print("Not in list of algorithms, choose from the list above")
 
     if algo == "Test Algorithms":
-        # Change algorithm being tested here
-        for a in list_of_algos:
-            MultiAgentEnvironment.run_scenario_multi_agent_diagnostics(diagnostics_obstacles, diagnostics_agents, goal_2, a)
+        sheets = {}
+        # Change algorithm being tested here (**CHANGE BACK TO LIST OF ALGOS)
+        for a in test_list:
+            sheet = pd.DataFrame()
+            for run in range(50):
+                temp_sheet = MultiAgentEnvironment.run_scenario_multi_agent_diagnostics(diagnostics_obstacles, a)
+                sheet = pd.concat([sheet, temp_sheet], ignore_index=True)
+
+            sheets[a] = sheet
+
+        MultiAgentEnvironment.save_to_csv(sheets, 'Results.xlsx')
 
     else:
         obstacles_to_use = 0
@@ -106,15 +122,15 @@ def main():
         while num_rand_agents > 15 or num_rand_agents < 1:
             num_rand_agents = int(input("\nHow many random agents would you like to generate?\n"))
 
-    if algo != "GWO":
-        agents = MultiAgentEnvironment.create_agent_line(100, int(random.uniform(250, 600)), num_rand_agents)
-        MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents, goal_2, algo)
+        if algo != "GWO":
+            agents = MultiAgentEnvironment.create_agent_line(100, int(random.uniform(500, 600)), num_rand_agents)
+            MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents, goal_2, algo)
 
-    else:
-        agents = MultiAgentEnvironment.create_wolf_population(100, int(random.uniform(250, 600)), num_rand_agents)
+        else:
+            agents = MultiAgentEnvironment.create_wolf_population(100, int(random.uniform(250, 600)), num_rand_agents)
 
-        MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents, goal_2, algo)
-        # SingleAgentEnvironment.run_scenario_single_agent(obstacles, agent_1, goal_1, "A Star")
+            MultiAgentEnvironment.run_scenario_multi_agent(obstacles, agents, goal_2, algo)
+            # SingleAgentEnvironment.run_scenario_single_agent(obstacles, agent_1, goal_1, "A Star")
 
 
 if __name__ == "__main__":
