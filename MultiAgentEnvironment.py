@@ -534,6 +534,7 @@ class Algorithm:
             new_gradient.append(0)
             past_gradient.append(0)
 
+        total_reward = 0
         for episode in range(0, iteration):
             # while not agent.goal_test():
             all_agents_reached_goal = True
@@ -549,6 +550,7 @@ class Algorithm:
 
                 # agent.feed_pos(agents_pos)
                 path, length, reward = agent.action()
+                total_reward += reward
 
                 # update rewards and gradients
                 agent.reward_mem.append(reward + y * agent.next_reward())  # this is q-value stored in agent
@@ -602,12 +604,13 @@ class Algorithm:
             paths.append(mad_agent.long_mem)
             disp_paths.append(mad_agent.disp_path)
 
+        avg_total_reward = float(total_reward)/len(self.list_of_agents)
         # print("compare_list:")
         # print(compare_list)
         # print(max(compare_list))
         msg = f'Sim completed at episode {episode}'  # only for while statement
         print(msg)
-        return disp_paths, episode
+        return disp_paths, episode, avg_total_reward
 
     def hsgwo_msos(self, goal, max_iterations):
         def heuristic(node, goal):
@@ -787,7 +790,6 @@ def run_scenario_multi_agent_diagnostics(lo_obstacles, algorithm_type):
             agent_list_name = "Agent " + str(j)
             agent_len = len(agents)
 
-
             # time the length of the algorithm for results
             start_time = time.time()
 
@@ -808,9 +810,10 @@ def run_scenario_multi_agent_diagnostics(lo_obstacles, algorithm_type):
             elif algorithm_type == "MAD":
                 mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
                 mad_algorithm = Algorithm(mad_agents, obstacles)
-                paths, iterations = mad_algorithm.mad_search()
+                paths, iterations, avg_total_reward = mad_algorithm.mad_search()
             else:
                 print("invalid algorithm")
+                iterations = 0
 
             end_time = time.time()
             elapsed_time = end_time - start_time
@@ -826,6 +829,8 @@ def run_scenario_multi_agent_diagnostics(lo_obstacles, algorithm_type):
             new_dict[col_names[6]] = [iterations]
             if algorithm_type == 'GWO':
                 new_dict[col_names[7]] = [cost_per_agent]
+            if algorithm_type == 'MAD':
+                new_dict[col_names[7]] = [avg_total_reward]
             print("datapoint complete")
             new_data_point = pd.DataFrame(new_dict, index=None)
             sheet = pd.concat([sheet, new_data_point], ignore_index=True)
@@ -866,7 +871,7 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     elif algorithm_type == "MAD":
         mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
         mad_algorithm = Algorithm(mad_agents, obstacles)
-        paths, iterations = mad_algorithm.mad_search()
+        paths, iterations, avg_total_reward = mad_algorithm.mad_search()
         # print(paths)
     else:
         print("invalid algorithm")
