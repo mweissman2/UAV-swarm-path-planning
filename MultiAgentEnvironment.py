@@ -154,6 +154,7 @@ class Wolf(Agent):
         #if J_cost != 0:
         #    print('J_fuel' + str(J_fuel) + 'J_threat' + str(J_cost))
         self.fitness = J_cost
+        return J_cost
 
     def update_position(self, alpha_position, goal, obstacles):
         # find new position based on alpha/omega designation
@@ -486,6 +487,7 @@ class Algorithm:
             return (new_pos_x, new_pos_y)
 
         paths = []
+        num_iterations = 1000
 
         for episode in range(0, 1000):
             all_goal = True
@@ -509,12 +511,13 @@ class Algorithm:
 
             if all_goal:
                 print("Episode:", episode)
+                num_iterations = episode
                 break
 
         for agent in self.list_of_agents:
             paths.append(agent.temp_path)
 
-        return paths
+        return paths, num_iterations
 
     def mad_search(self):
         q = []
@@ -531,6 +534,7 @@ class Algorithm:
             new_gradient.append(0)
             past_gradient.append(0)
 
+        total_reward = 0
         for episode in range(0, iteration):
             # while not agent.goal_test():
             all_agents_reached_goal = True
@@ -546,6 +550,7 @@ class Algorithm:
 
                 # agent.feed_pos(agents_pos)
                 path, length, reward = agent.action()
+                total_reward += reward
 
                 # update rewards and gradients
                 agent.reward_mem.append(reward + y * agent.next_reward())  # this is q-value stored in agent
@@ -599,12 +604,13 @@ class Algorithm:
             paths.append(mad_agent.long_mem)
             disp_paths.append(mad_agent.disp_path)
 
+        avg_total_reward = float(total_reward)/len(self.list_of_agents)
         # print("compare_list:")
         # print(compare_list)
         # print(max(compare_list))
         msg = f'Sim completed at episode {episode}'  # only for while statement
         print(msg)
-        return disp_paths
+        return disp_paths, episode, avg_total_reward
 
     def hsgwo_msos(self, goal, max_iterations):
         def heuristic(node, goal):
@@ -654,17 +660,20 @@ class Algorithm:
         # cycle thru episodes to find iterative alphas
         e = 0
         all_agents_at_target = False
+        cost_list = []
         while e < max_iterations and not all_agents_at_target:
             e += 1
             all_agents_at_target = True
+            temp_cost = 0
             for wolf in self.list_of_agents:
                 if (wolf.x, wolf.y) != goal:
                     all_agents_at_target = False
                 wolf.update_position(alpha_position, goal, self.obstacles)
                 wolf.explore(goal, self.obstacles)
-                wolf.update_fitness(goal, self.obstacles)
+                temp_cost += wolf.update_fitness(goal, self.obstacles)
                 wolfFitnessDict[wolf.agent_id] = wolf.fitness  # save new fitness values
             alpha_position = update_hierarchy(wolfFitnessDict)
+            cost_list.append(float(temp_cost)/len(self.list_of_agents))
 
         # reconstruct path
         for wolf in self.list_of_agents:
@@ -672,7 +681,9 @@ class Algorithm:
             temppath.append(wolf.temppath)
             paths.reverse()
             temppath.reverse()
-        return temppath
+
+        total_cost_per_agent = sum(cost_list)
+        return temppath, e, total_cost_per_agent
 
 def save_to_csv(data_dict, file_name):
     # Create an Excel writer object
@@ -740,21 +751,19 @@ def path_length_diagnostics(paths, goal, obstacles):
 
 def run_scenario_multi_agent_diagnostics(lo_obstacles, algorithm_type):
 
-    col_names = ['agent_list', 'num of agents', 'obstacle difficulty', 'time', 'path length', 'completion %']
+    col_names = ['agent_list', 'num of agents', 'obstacle difficulty', 'time', 'path length', 'completion %', 'iterations used']
+    if algorithm_type == 'GWO':
+        col_names.append('total cost per agent')
+    if algorithm_type == 'MAD':
+        col_names.append('total reward per agent')
     data_dict = {}
     sheet = pd.DataFrame(data_dict)
 
     i = 0
 
-
-
     for obstacles in lo_obstacles:
         i += 1
         j = 0
-        elapsed_times = []
-        average_lengths = []
-        completion_percentages = []
-        new_dict = {}
 
         # stupid code for defining diagnostic stuff
         agents_center_line_10 = create_agent_line(100, 300, 10)
@@ -790,41 +799,40 @@ def run_scenario_multi_agent_diagnostics(lo_obstacles, algorithm_type):
                 # Create an instance of the Algorithm class
                 algorithm = Algorithm(agents, obstacles)
                 paths = algorithm.a_star_search(goal_position)
+                iterations = len(paths[0])
                 print(paths)
             elif algorithm_type == "APF":
                 algorithm = Algorithm(agents, obstacles)
-                paths = algorithm.apf_search(goal_position)
+                paths, iterations = algorithm.apf_search(goal_position)
             elif algorithm_type == "GWO":
                 algorithm = Algorithm(agents, obstacles)
-                paths = algorithm.hsgwo_msos(goal_position, max_iterations=1000)
+                paths, iterations, cost_per_agent = algorithm.hsgwo_msos(goal_position, max_iterations=1000)
             elif algorithm_type == "MAD":
                 mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
                 mad_algorithm = Algorithm(mad_agents, obstacles)
-                paths = mad_algorithm.mad_search()
+                paths, iterations, avg_total_reward = mad_algorithm.mad_search()
             else:
                 print("invalid algorithm")
+                iterations = 0
 
             end_time = time.time()
             elapsed_time = end_time - start_time
             average_length, completion_percentage = path_length_diagnostics(paths, goal_position, obstacles)
 
-            # Store the data in the respective lists
-            elapsed_times.append(elapsed_time)
-            average_lengths.append(average_length)
-            completion_percentages.append(completion_percentage)
-
-            # Store the complexity value for the current environment
+            new_dict = {}
+            new_dict[col_names[0]] = [agent_list_name]
+            new_dict[col_names[1]] = [agent_len]
+            new_dict[col_names[2]] = [i]
+            new_dict[col_names[3]] = [elapsed_time]
+            new_dict[col_names[4]] = [average_length]
+            new_dict[col_names[5]] = [completion_percentage]
+            new_dict[col_names[6]] = [iterations]
+            if algorithm_type == 'GWO':
+                new_dict[col_names[7]] = [cost_per_agent]
+            if algorithm_type == 'MAD':
+                new_dict[col_names[7]] = [avg_total_reward]
             print("datapoint complete")
-
-            new_dict[col_names[0]] = agent_list_name
-            new_dict[col_names[1]] = agent_len
-            new_dict[col_names[2]] = i
-            new_dict[col_names[3]] = elapsed_time
-            new_dict[col_names[4]] = average_length
-            new_dict[col_names[5]] = completion_percentage
-
-            # Append the data point using append method
-            new_data_point = pd.DataFrame(new_dict, index=[i + j])
+            new_data_point = pd.DataFrame(new_dict, index=None)
             sheet = pd.concat([sheet, new_data_point], ignore_index=True)
 
     print(sheet.to_string())
@@ -852,17 +860,18 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
         # Create an instance of the Algorithm class
         algorithm = Algorithm(agents, obstacles)
         paths = algorithm.a_star_search(goal_position)
+        iterations = len(paths[0])
         # print(paths)
     elif algorithm_type == "APF":
         algorithm = Algorithm(agents, obstacles)
-        paths = algorithm.apf_search(goal_position)
+        paths, iterations = algorithm.apf_search(goal_position)
     elif algorithm_type == "GWO":
         algorithm = Algorithm(agents, obstacles)
-        paths = algorithm.hsgwo_msos(goal_position, max_iterations=4000)
+        paths, iterations, costs = algorithm.hsgwo_msos(goal_position, max_iterations=4000)
     elif algorithm_type == "MAD":
         mad_agents = create_mad_agents_from_agents(agents, goal_position, obstacles)
         mad_algorithm = Algorithm(mad_agents, obstacles)
-        paths = mad_algorithm.mad_search()
+        paths, iterations, avg_total_reward = mad_algorithm.mad_search()
         # print(paths)
     else:
         print("invalid algorithm")
