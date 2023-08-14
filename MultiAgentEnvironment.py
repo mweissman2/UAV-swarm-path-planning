@@ -14,8 +14,6 @@ import time
 import csv
 import pandas as pd
 
-
-
 # Constants
 WIDTH = 800  # Width of the simulation window
 HEIGHT = 608  # Height of the simulation window
