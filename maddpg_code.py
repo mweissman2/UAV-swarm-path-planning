@@ -1,20 +1,4 @@
-
-import MultiAgentEnvironment
-from MultiAgentEnvironment import *
-
-# Constants
-WIDTH = MultiAgentEnvironment.WIDTH  # Width of the simulation window
-HEIGHT = MultiAgentEnvironment.HEIGHT # Height of the simulation window
-AGENT_RADIUS = MultiAgentEnvironment.AGENT_RADIUS  # Radius of the agent
-OBSTACLE_RADIUS = MultiAgentEnvironment.OBSTACLE_RADIUS  # Radius of the obstacles
-MOVEMENT_SPEED = MultiAgentEnvironment.MOVEMENT_SPEED # Movement speed of the agent
-
-# Colors
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
+from Agent import *
 
 
 # class for making individual agents
@@ -125,8 +109,6 @@ class MADDPG_agent:
         reward = max_reward - self.euclid_distance((x, y), (x2, y2))
         return reward
 
-
-
     # actions are Defined via simulated annealing algorithm, which determines which action to take locally
     # members of the swarm will have to use their own action
     # when transmitting, the replay buffer will contain a list of 5 past positions
@@ -196,8 +178,8 @@ class MADDPG_agent:
 
         self.next_reward_neighbor = self.position
         # if self.position == self.goal:
-            # msg_out = f'Agent {self.agent_id} has reached goal at episode {self.e_counter}'
-            # print(msg_out)
+        # msg_out = f'Agent {self.agent_id} has reached goal at episode {self.e_counter}'
+        # print(msg_out)
 
         # return path route and distance to the target, euclid distance
         return sa_path, self.path_length, self.reward(self.position[0], self.position[1])

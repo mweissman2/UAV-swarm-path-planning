@@ -1,13 +1,4 @@
-import MultiAgentEnvironment
-from MultiAgentEnvironment import*
-
-
-# Constants
-WIDTH = MultiAgentEnvironment.WIDTH  # Width of the simulation window
-HEIGHT = MultiAgentEnvironment.HEIGHT # Height of the simulation window
-AGENT_RADIUS = MultiAgentEnvironment.AGENT_RADIUS  # Radius of the agent
-OBSTACLE_RADIUS = MultiAgentEnvironment.OBSTACLE_RADIUS  # Radius of the obstacles
-MOVEMENT_SPEED = MultiAgentEnvironment.MOVEMENT_SPEED # Movement speed of the agent
+from Agent import *
 
 class Wolf(Agent):
     def __init__(self, agent_id, x, y):

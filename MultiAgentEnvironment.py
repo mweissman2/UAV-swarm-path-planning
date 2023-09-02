@@ -1,69 +1,17 @@
-import random
-import pygame
-import heapq
-import math
+
 
 from matplotlib import pyplot as plt
-
-from maddpg_code import *
+# from Agent import *  # Inherits from Agent automatically through other scripts
+from maddpg_code import MADDPG_agent
 from hsgwo_code import *
+from improvedAPF_code import *
 import statistics
 import numpy
 import imageio
 import time
-import csv
 import pandas as pd
 
-# Constants
-WIDTH = 800  # Width of the simulation window
-HEIGHT = 608  # Height of the simulation window
-AGENT_RADIUS = 5  # Radius of the agent
-OBSTACLE_RADIUS = 30  # Radius of the obstacles
-MOVEMENT_SPEED = 3  # Movement speed of the agent
 
-# For APF
-SEARCH_RADIUS = 20
-
-# Colors
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-
-
-class Agent:
-    def __init__(self, agent_id, x, y):
-        self.agent_id = agent_id
-        self.x = x
-        self.y = y
-        self.start = (self.x, self.y)
-        self.path = []
-        self.disp_goal_reached = False
-        self.temp_path = []
-        self.initial_pos = (x, y)  # For permanent pos storage
-
-    def get_id(self):
-        print(self.agent_id)
-
-    def move(self):
-        if self.path:
-            next_pos = self.path[0]
-            dx = next_pos[0] - self.x
-            dy = next_pos[1] - self.y
-            distance = (dx ** 2 + dy ** 2) ** 0.5
-
-            self.x = next_pos[0]
-            self.y = next_pos[1]
-            self.path.pop(0)
-            if len(self.path) == 0:
-                print("agent path completed")
-
-    def draw(self, screen):
-        pygame.draw.circle(screen, GREEN, (self.x, self.y), AGENT_RADIUS)
-
-    def reset(self):
-        self.x, self.y = self.initial_pos
 
 
 
@@ -196,93 +144,10 @@ class Algorithm:
 
     # APF search
     def apf_search(self, goal):
-        # Compute the attractive force between the agent and the goal
-        def attractive_force(agent_pos):
-            k_att = 5.0  # Attractive force gain
-            k_att2 = 3.0  # Velocity gain
-            dx = (goal[0] - agent_pos[0])
-            dy = goal[1] - agent_pos[1]
-
-            return k_att * dx + k_att2 * MOVEMENT_SPEED, k_att * dy + k_att2 * MOVEMENT_SPEED
-
-        # Compute the repulsive force between the agent and an obstacle
-        def repulsive_force(agent_pos, obstacle_pos, obstacle_radius):
-            # k_rep = 10000000  # Repulsive force gain
-            # k_rep = 500
-            k_rep = 200
-            buffer = SEARCH_RADIUS * (1/2)  # was 1/5
-            p0 = obstacle_radius + buffer  # Influence radius of F_rep
-            obst_dist_x = (agent_pos[0] - obstacle_pos[0])
-            obst_dist_y = (agent_pos[1] - obstacle_pos[1])
-            # dist = (obst_dist_x ** 2 + obst_dist_y ** 2)**0.5  # Dist btwn UAV and obstacle
-            dist = (obst_dist_x ** 2 + obst_dist_y ** 2) ** 0.5 - obstacle_radius  # Dist btwn UAV and obstacle
-            if dist <= p0:
-                # x_rep = k_rep * ((1 / obst_dist_x - (1 / p0)) * (1 / obst_dist_x) ** 2)
-                # y_rep = k_rep * ((1 / obst_dist_y - (1 / p0)) * (1 / obst_dist_y) ** 2)
-                x_rep = k_rep**3 * ((1 / dist - 1 / p0) * (obst_dist_x / dist) * (1 / dist) ** 2)
-                y_rep = k_rep**3 * ((1 / dist - 1 / p0) * (obst_dist_y / dist) * (1 / dist) ** 2)
-
-                return x_rep, y_rep
-                # return k_rep * (1/obst_dist_x), k_rep * (1/obst_dist_y)
-            else:
-                return (0.0, 0.0)
-
-        def inter_agent_force(agent, agent_pos):
-            dx_agent_pos = (goal[0] - agent_pos[0])
-            dy_agent_pos = (goal[1] - agent_pos[1])
-            dist_agent_pos = (dx_agent_pos ** 2 + dy_agent_pos ** 2) ** 0.5
-
-            dx_agent = (goal[0] - agent.x)
-            dy_agent = (goal[1] - agent.y)
-            dist_agent = (dx_agent ** 2 + dy_agent ** 2) ** 0.5
-
-            threshold = 50
-
-            if (agent.x, agent.y) != agent_pos and (dist_agent_pos > threshold or dist_agent > threshold):
-                k_rep = 100000  # Repulsive force gain
-                buffer = AGENT_RADIUS + 1
-                p0 = AGENT_RADIUS + buffer  # Influence radius of F_rep
-                inter_dist_x = agent_pos[0] - agent.x
-                inter_dist_y = agent_pos[1] - agent.y
-                dist = (inter_dist_x ** 2 + inter_dist_y ** 2) ** 0.5  # Dist btwn UAV and obstacle
-                if dist <= p0:
-                    if inter_dist_x > 0:
-                        # x_rep = k_rep * ((1 / inter_dist_x - (1 / p0)) * (1 / inter_dist_x) ** 2)
-                        x_rep = k_rep**3 * ((1 / dist - 1 / p0) * (inter_dist_x / dist) * (1 / dist) ** 2)
-                    else:
-                        x_rep = 0
-                    if inter_dist_y > 0:
-                        # y_rep = k_rep * ((1 / inter_dist_y - (1 / p0)) * (1 / inter_dist_y) ** 2)
-                        y_rep = k_rep**3 * ((1 / dist - 1 / p0) * (inter_dist_y / dist)* (1 / dist) ** 2)
-                    else:
-                        y_rep = 0
-                    return x_rep, y_rep
-                else:
-                    return 0.0, 0.0
-            else:
-                return 0.0, 0.0
-
-        # Compute the total force acting on the agent at its current position
-        def total_force(agent_pos, obstacles):
-            force_x, force_y = attractive_force(agent_pos)
-            # print("att_fx:", force_x, "att_fy:", force_y)
-
-            for obstacle in obstacles:
-                rep_force_x, rep_force_y = repulsive_force(agent_pos, (obstacle.x, obstacle.y), obstacle.radius)
-                force_x += rep_force_x
-                force_y += rep_force_y
-            # print("tot_fx:", force_x, "tot_fy:", force_y)
-
-            for agent in self.apf_list_of_agents:
-                rep_force_x, rep_force_y = inter_agent_force(agent, agent_pos)
-                force_x += rep_force_x
-                force_y += rep_force_y
-
-            return (force_x, force_y)
 
         # Move the agent towards the goal position based on the total force
-        def move_towards(episode, agent_pos, obstacles):
-            force_x, force_y = total_force(agent_pos, obstacles)
+        def move_towards(episode, agent, obstacles):
+            force_x, force_y = total_force(agent, obstacles, goal, self.apf_list_of_agents)
             self.force_record.append((force_x, force_y))
             angle = math.atan2(force_y, force_x)
             self.angle_record.append(angle)
@@ -290,7 +155,7 @@ class Algorithm:
             force_x /= force_magnitude
             force_y /= force_magnitude
 
-            f = 1.3  # jitter coeff
+            f = 1.03  # jitter coeff
             del_angle_x = angle - self.angle_record[episode-1]
             del_angle_y = math.pi/2 - del_angle_x
             del_angle = (del_angle_x**2 + del_angle_y**2)**0.5
@@ -307,8 +172,8 @@ class Algorithm:
             force_y *= MOVEMENT_SPEED * jitter_buff_y
             # print("angle", math.degrees(del_angle), "tot:", MOVEMENT_SPEED * f * math.cos(self.angle_record[episode-1] + 0.5*del_angle))
 
-            new_pos_x = agent_pos[0] + force_x
-            new_pos_y = agent_pos[1] + force_y
+            new_pos_x = agent.x + force_x
+            new_pos_y = agent.y + force_y
 
             return (new_pos_x, new_pos_y)
 
@@ -328,7 +193,7 @@ class Algorithm:
 
                 else:
                     all_goal = False
-                    next_pos = move_towards(episode, (agent.x, agent.y), self.obstacles)
+                    next_pos = move_towards(episode, agent, self.obstacles)
                     agent.temp_path.append(next_pos)
                     agent.path.append(next_pos)
 
