@@ -88,6 +88,7 @@ class Wolf(Agent):
         #if J_cost != 0:
         #    print('J_fuel' + str(J_fuel) + 'J_threat' + str(J_cost))
         self.fitness = J_cost
+        return J_cost
 
     def update_position(self, alpha_position, goal, obstacles):
         # find new position based on alpha/omega designation
