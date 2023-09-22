@@ -101,9 +101,9 @@ def main():
     if algo == "Test Algorithms":
         sheets = {}
         # Change algorithm being tested here (**CHANGE BACK TO LIST OF ALGOS)
-        for a in test_list:
+        for a in list_of_algos:
             sheet = pd.DataFrame()
-            for run in range(2):
+            for run in range(50):
                 temp_sheet = MultiAgentEnvironment.run_scenario_multi_agent_diagnostics(diagnostics_obstacles, a)
                 sheet = pd.concat([sheet, temp_sheet], ignore_index=True)
 

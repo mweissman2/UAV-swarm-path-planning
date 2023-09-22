@@ -529,7 +529,7 @@ class Algorithm:
         compare_list = []
         episode = 0
         agents_pos = []
-        iteration = 15000
+        iteration = 10000
         for agent in self.list_of_agents:
             new_gradient.append(0)
             past_gradient.append(0)
@@ -700,7 +700,7 @@ def save_to_csv(data_dict, file_name):
     print(f"Data saved to '{file_name}' successfully!")
 
 
-def path_length_diagnostics(paths, goal, obstacles):
+def path_length_diagnostics(paths, goal, obstacles, algo_key):
     total_path_length = 0
     incomplete_paths = 0
     complete_paths = 0
@@ -709,6 +709,8 @@ def path_length_diagnostics(paths, goal, obstacles):
         temp_length = 0
         path_complete = True
         prev_point = path[0]
+        prev_prev_point = path[0]
+        i = 0
         for point in path:
             if not path_complete:
                 break
@@ -719,13 +721,26 @@ def path_length_diagnostics(paths, goal, obstacles):
                 if distance <= AGENT_RADIUS + obstacle.radius:
                     path_complete = False
 
-            dx = point[0] - prev_point[0]
-            dy = point[1] - prev_point[1]
-            distance = math.sqrt(dx ** 2 + dy ** 2)
-            temp_length += distance
+            if algo_key != "A Star":
+                dx = point[0] - prev_point[0]
+                dy = point[1] - prev_point[1]
+                distance = math.sqrt(dx ** 2 + dy ** 2)
+                temp_length += distance
+            elif i != 0 and (i % 2) == 0:
+                dx = point[0] - prev_prev_point[0]
+                dy = point[1] - prev_prev_point[1]
+                distance = math.sqrt(dx ** 2 + dy ** 2)
+                temp_length += distance
+            else:
+                distance = 0
+
+
             if distance > MOVEMENT_SPEED*10:
                 path_complete = False
+            prev_prev_point = prev_point
             prev_point = point
+
+            i += 1
 
         if path[-1] != goal:
             path_complete = False
@@ -817,7 +832,7 @@ def run_scenario_multi_agent_diagnostics(lo_obstacles, algorithm_type):
 
             end_time = time.time()
             elapsed_time = end_time - start_time
-            average_length, completion_percentage = path_length_diagnostics(paths, goal_position, obstacles)
+            average_length, completion_percentage = path_length_diagnostics(paths, goal_position, obstacles, algorithm_type)
 
             new_dict = {}
             new_dict[col_names[0]] = [agent_list_name]
@@ -880,7 +895,7 @@ def run_scenario_multi_agent(obstacles_in, agents_in, goal_in, algorithm_type):
     elapsed_time = end_time - start_time
     print(f"The algorithm block took {elapsed_time} seconds to execute.")
 
-    average_length, completion_percentage = path_length_diagnostics(paths, goal_position, obstacles)
+    average_length, completion_percentage = path_length_diagnostics(paths, goal_position, obstacles, algorithm_type)
     print(f"The average path length of the swarm was {average_length} points")
     print(f"The percentage of robots that made it to the goal was {completion_percentage * 100}%")
 
